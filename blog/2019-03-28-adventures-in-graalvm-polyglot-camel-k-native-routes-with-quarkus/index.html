@@ -1,0 +1,376 @@
+<!doctype html><html lang=en-us>
+<head>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Adventures in GraalVM: polyglot Camel (k) native routes with Quarkus</title>
+<style>html body{font-family:raleway,sans-serif;background-color:#d3d3d3}:root{--accent:black;--border-width:5px}</style>
+<link rel=stylesheet href=https://lburgazzoli.github.io/css/main.css>
+<link rel=stylesheet href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css>
+<link rel=stylesheet href=https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css crossorigin=anonymous>
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin=anonymous>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/go.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/java.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/rust.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/python.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/groovy.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/ini.min.js></script>
+<script>hljs.initHighlightingOnLoad()</script>
+<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js></script>
+<script src=https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js integrity=sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa crossorigin=anonymous></script>
+<script>$(document).on('click',function(){$('.collapse').collapse('hide')})</script>
+<meta name=generator content="Hugo 0.88.1">
+<script type=text/javascript async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+<nav class="navbar navbar-default navbar-fixed-top">
+<div class=container>
+<div class=navbar-header>
+<a class="navbar-brand visible-xs" href=#>Adventures in GraalVM: polyglot Camel (k) native routes with Quarkus</a>
+<button class=navbar-toggle data-target=.navbar-collapse data-toggle=collapse>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+</button>
+</div>
+<div class="collapse navbar-collapse">
+<ul class="nav navbar-nav">
+<li><a href=/>Home</a></li>
+<li><a href=/about/>About</a></li>
+<li><a href=/blog/>Blog</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<li class=navbar-icon><a href=https://github.com/lburgazzoli/><i class="fab fa-github"></i></a></li>
+<li class=navbar-icon><a href=https://twitter.com/lburgazzoli/><i class="fab fa-twitter"></i></a></li>
+<li class=navbar-icon><a href=https://www.linkedin.com/in/lucaburgazzoli><i class="fab fa-linkedin"></i></a></li>
+</ul>
+</div>
+</div>
+</nav>
+<main>
+<div>
+<h2>Adventures in GraalVM: polyglot Camel (k) native routes with Quarkus</h2>
+<h5></h5>
+<a href=https://lburgazzoli.github.iotags/graalvm><kbd class=item-tag>graalvm</kbd></a>
+<a href=https://lburgazzoli.github.iotags/scripting><kbd class=item-tag>scripting</kbd></a>
+<a href=https://lburgazzoli.github.iotags/camel><kbd class=item-tag>camel</kbd></a>
+</div>
+<div align=start class=content><div class=paragraph>
+<p>The last blog i wrote<sup class=footnote>[<a id=_footnoteref_1 class=footnote href=#_footnotedef_1 title="View footnote.">1</a>]</sup> was about running integration code written in JavaScript from a Camel application compiled as native executable using SubstrateVM (part of the GraalVM project).</p>
+</div>
+<div class=sect1>
+<h2 id=_has_something_happen_since_then>Has something happen since then ?</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>I would say yes:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p><a href=https://github.com/apache/camel-k>Camel K</a></p>
+</li>
+<li>
+<p><a href=https://quarkus.io>Quarkus</a></p>
+</li>
+<li>
+<p>Camel 3 development has finally started</p>
+</li>
+</ul>
+</div>
+<div class=paragraph>
+<p>As I’m involved in all the projects above, let see how they can play togheter to deliver a truly amazing cloud native experience.</p>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Caution</div>
+</td>
+<td class=content>
+this post is based on code not yet merged in the upstream repository and subject to change
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_bring_some_quarkus_to_camel_k>Bring some Quarkus to Camel K</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Quarkus provides some initial support<sup class=footnote>[<a id=_footnoteref_2 class=footnote href=#_footnotedef_2 title="View footnote.">2</a>]</sup> for Camel through dedicated extensions that:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p>perform most of the steps needed to initialize a CamelContext instance at build time so as example, components, languages and data-formats are discovered and loaded into the registry when the build runs so Camel does not need to spend any time resolving and instantiating the related classes at run time</p>
+</li>
+<li>
+<p>provided SubstrateVM "hacks" to let Camel based appication to compile against Graal/SubstrateVM.</p>
+</li>
+</ul>
+</div>
+<div class=paragraph>
+<p>Quarkus supports CDI which let us use CDI annotations to obtain a reference to a bean holding optimized Camel bits and to adapt quarked Camel lifecycle events to Camel K lifecycle:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>@ApplicationScoped
+public class CamelKApplication {
+    @Inject
+    CamelRuntime runtime;
+
+	List&lt;Listener&gt; listeners = new ArrayList&lt;&gt;();
+
+    public void initializing(@Observes InitializingEvent event) {
+        listeners.forEach(l -&gt; l.accept(Phase.ConfigureContext, this));
+        listeners.forEach(l -&gt; l.accept(Phase.ConfigureRoutes, this));
+    }
+
+    public void starting(@Observes StartingEvent event) {
+        listeners.forEach(l -&gt; l.accept(Phase.Starting, this));
+    }
+
+    public void started(@Observes StartedEvent event) {
+    	listeners.forEach(l -&gt; l.accept(Phase.Started, this));
+    }
+
+    public void stopping(@Observes StoppingEvent event) {
+    	listeners.forEach(l -&gt; l.accept(Phase.Stopping, this));
+    }
+
+    public void stopped(@Observes StoppedEvent event) {
+        listeners.forEach(l -&gt; l.accept(Phase.Stopped, this));
+    }
+}</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>As we want to be able to run our code as native binary we also need to create a Camel K extension for Quarkus<sup class=footnote>[<a id=_footnoteref_3 class=footnote href=#_footnotedef_3 title="View footnote.">3</a>]</sup> that can instruct it about what it is needed for Camel K to properly build and run with SubstrateVM.</p>
+</div>
+<div class=paragraph>
+<p>The minimum requirement is to make the services Camel K relies on available when running in native mode:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>public class CamelQuarkusProcessor {
+    @BuildStep
+    void processServices(
+            BuildProducer&lt;ServiceProviderBuildItem&gt; serviceProvider,
+            CombinedIndexBuildItem combinedIndexBuildItem) {
+
+        IndexView view = combinedIndexBuildItem.getIndex(); // <b class=conum>(1)</b>
+        String type = &#34;org.apache.camel.k.Runtime$Listener&#34;;
+
+        view.getAllKnownImplementors(DotName.createSimple(type)).forEach(i-&gt; {
+            serviceProvider.produce(
+                new ServiceProviderBuildItem(
+                    type,
+                    i.name().toString())
+           );
+        }); // <b class=conum>(2)</b>
+    }
+}</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>Leverage <a href=https://github.com/wildfly/jandex>Jandex</a> for efficient metadata indexing and lookup</p>
+</li>
+<li>
+<p>Instruct Quarkus about concrete service provider needed ar runtime</p>
+</li>
+</ol>
+</div>
+<div class=paragraph>
+<p>We also want to make our application polyglot so we can add support for JavaScript through Graal JS<sup class=footnote>[<a id=_footnoteref_4 class=footnote href=#_footnotedef_4 title="View footnote.">4</a>]</sup> and to do that in a previous release of GrallVM<sup class=footnote>[<a id=_footnoteref_5 class=footnote href=#_footnotedef_5 title="View footnote.">5</a>]</sup> I had to implment some proxy classes to support reflective access from JavaScript back to Java but as of GraalVM RC13<sup class=footnote>[<a id=_footnoteref_6 class=footnote href=#_footnotedef_6 title="View footnote.">6</a>]</sup>, this is not more needed and instead we only need to list the impacted classed among those that need to be accessed reflectively.</p>
+</div>
+<div class=paragraph>
+<p>In Quarkus this can be done through a dedicate BuildProducer:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>public class CamelQuarkusProcessor {
+    @BuildStep
+    void processReflectiveClasses(
+            BuildProducer&lt;ReflectiveClassBuildItem&gt; reflectiveClass,
+            CombinedIndexBuildItem combinedIndexBuildItem) {
+
+        reflectiveClass.produce(
+            new ReflectiveClassBuildItem(
+            	true,
+                false,
+                &#34;org.apache.camel.builder.ExpressionClause&#34;,
+                &#34;org.apache.camel.model.FromDefinition&#34;,
+                &#34;org.apache.camel.model.ProcessDefinition&#34;,
+                &#34;org.apache.camel.model.ProcessorDefinition&#34;,
+                &#34;org.apache.camel.model.RouteDefinition&#34;,
+                &#34;org.apache.camel.model.ToDefinition&#34;,
+                &#34;org.apache.camel.model.language.ExpressionDefinition&#34;,
+                &#34;org.apache.camel.spi.ExchangeFormatter&#34;)
+        );
+}</code></pre>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_run_it>Run it</h3>
+<div class=paragraph>
+<p>The first test we can do is ot run our application in JVM mode so let’s write a simple JavaScript route:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-js data-lang=js>from(&#39;timer:js?period=1s&#39;)
+    .setBody()
+        .simple(&#39;Hello Camel K from ${routeId}&#39;)
+    .to(&#39;log:info?multiline=true&#39;)</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>An run it:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code>07:10:04,587 INFO  Adding listener: class org.apache.camel.k.listener.ContextConfigurer
+07:10:04,598 INFO  Adding listener: class org.apache.camel.k.listener.ContextLifecycleConfigurer
+07:10:04,599 INFO  Adding listener: class org.apache.camel.k.listener.RoutesConfigurer
+07:10:04,600 INFO  Adding listener: class org.apache.camel.k.listener.RoutesDumper
+07:10:04,651 INFO  Type converters loaded (core: 183, classpath: 14)
+07:10:04,662 INFO  Creating interface org.apache.camel.spi.Language for name simple
+07:10:04,662 INFO  Binding language simple with prefix camel.language.simple
+07:10:04,683 INFO  Loading routes from: file:simple.js with loader: class org.apache.camel.k.loader.js.graal.GraalJavaScriptLoader
+07:10:05,257 INFO  No xml routes configured
+07:10:05,291 INFO  Creating interface org.apache.camel.Component for name timer
+07:10:05,291 INFO  Binding component timer with prefix camel.component.timer
+07:10:05,313 INFO  Creating interface org.apache.camel.Component for name log
+07:10:05,314 INFO  Binding component log with prefix camel.component.log
+07:10:05,322 INFO  Apache Camel 3.0.0-M2 (CamelContext: quarkus-camel-k) is starting
+07:10:05,323 INFO  Apache Camel 3.0.0-M2 (CamelContext: quarkus-camel-k) is starting
+07:10:05,324 INFO  JMX is disabled
+07:10:05,329 INFO  StreamCaching is not in use. If using streams then its recommended to enable stream caching. See more details at http://camel.apache.org/stream-caching.html
+07:10:05,337 INFO  Route: js started and consuming from: timer://js?period=1s
+07:10:05,338 INFO  Total 1 routes, of which 1 are started
+07:10:05,339 INFO  Apache Camel 3.0.0-M2 (CamelContext: quarkus-camel-k) started in 0.015 seconds <b class=conum>(1)</b>
+07:10:05,345 INFO  Quarkus 999-SNAPSHOT started in 1.102s. <b class=conum>(2)</b>
+07:10:05,347 INFO  Installed features: [camel-core, cdi]
+07:10:06,386 INFO  Exchange[
+, ExchangePattern: InOnly
+, BodyType: String
+, Body: Hello Camel K from js
+]
+07:10:07,340 INFO  Exchange[
+, ExchangePattern: InOnly
+, BodyType: String
+, Body: Hello Camel K from js
+]</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>the camel context starts in 15ms</p>
+</li>
+<li>
+<p>the whole process takes around 1s to start</p>
+</li>
+</ol>
+</div>
+<div class=paragraph>
+<p>Let’s now run the same application compiled as native binary through SubstrateVM</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code>07:24:33,704 INFO  Adding listener: class org.apache.camel.k.listener.ContextConfigurer
+07:24:33,705 INFO  Adding listener: class org.apache.camel.k.listener.ContextLifecycleConfigurer
+07:24:33,705 INFO  Adding listener: class org.apache.camel.k.listener.RoutesConfigurer
+07:24:33,705 INFO  Adding listener: class org.apache.camel.k.listener.RoutesDumper
+07:24:33,707 INFO  Type converters loaded (core: 183, classpath: 0)
+07:24:33,708 INFO  Creating interface org.apache.camel.spi.Language for name simple
+07:24:33,708 INFO  Binding language simple with prefix camel.language.simple
+07:24:33,709 INFO  Loading routes from: file:simple.js with loader: class org.apache.camel.k.loader.js.graal.GraalJavaScriptLoader
+07:24:33,715 INFO  No xml routes configured
+07:24:33,715 INFO  Creating interface org.apache.camel.Component for name timer
+07:24:33,715 INFO  Binding component timer with prefix camel.component.timer
+07:24:33,717 INFO  Creating interface org.apache.camel.Component for name log
+07:24:33,717 INFO  Binding component log with prefix camel.component.log
+07:24:33,718 INFO  Apache Camel  (CamelContext: camel-1) is starting
+07:24:33,718 INFO  Apache Camel  (CamelContext: camel-1) is starting
+07:24:33,718 INFO  JMX is disabled
+07:24:33,718 INFO  StreamCaching is not in use. If using streams then its recommended to enable stream caching. See more details at http://camel.apache.org/stream-caching.html
+07:24:33,719 INFO  Route: js started and consuming from: timer://js?period=1s
+07:24:33,719 INFO  Total 1 routes, of which 1 are started
+07:24:33,719 INFO  Apache Camel  (CamelContext: camel-1) started in 0.001 seconds <b class=conum>(1)</b>
+07:24:33,719 INFO  Quarkus 999-SNAPSHOT started in 0.019s. <b class=conum>(2)</b>
+07:24:33,719 INFO  Installed features: [camel-core, cdi]
+07:24:34,720 INFO  Exchange[
+, ExchangePattern: InOnly
+, BodyType: String
+, Body: Hello Camel K from js
+]
+07:24:35,719 INFO  Exchange[
+, ExchangePattern: InOnly
+, BodyType: String
+, Body: Hello Camel K from js
+]</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>the camel context starts in 1ms</p>
+</li>
+<li>
+<p>the whole process takes around 20ms to start</p>
+</li>
+</ol>
+</div>
+<div class=paragraph>
+<p>Finaly we can run it on kubernetes with Camel K</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src=/images/camel-k-M2-native-js.gif alt="camel k M2 native js">
+</div>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_final_notes>Final Notes</h3>
+<div class=paragraph>
+<p>The Camel extension provided by Quarkus are also able to optimize routes at build time but in Camel K we do not use such feature as we want to re-use pre built Integration Contexts (including native ones) as much as possible</p>
+</div>
+<div class=paragraph>
+<p>As stated at the beginning this blog is based on code not yet merged in the related upstream projects but the result are already quite promising so stay tuned for more updates to come.</p>
+</div>
+</div>
+</div>
+</div>
+<div id=footnotes>
+<hr>
+<div class=footnote id=_footnotedef_1>
+<a href=#_footnoteref_1>1</a>. <a href=https://lburgazzoli.github.io/2018/09/04/Adventures-in-GraalVM-polyglot-Camel-routes-with-native-image.html class=bare>https://lburgazzoli.github.io/2018/09/04/Adventures-in-GraalVM-polyglot-Camel-routes-with-native-image.html</a>
+</div>
+<div class=footnote id=_footnotedef_2>
+<a href=#_footnoteref_2>2</a>. <a href=https://quarkus.io/extensions/#integration class=bare>https://quarkus.io/extensions/#integration</a>
+</div>
+<div class=footnote id=_footnotedef_3>
+<a href=#_footnoteref_3>3</a>. <a href=https://quarkus.io/guides/extension-authors-guide class=bare>https://quarkus.io/guides/extension-authors-guide</a>
+</div>
+<div class=footnote id=_footnotedef_4>
+<a href=#_footnoteref_4>4</a>. <a href=https://www.graalvm.org/docs/reference-manual/languages/jvm/ class=bare>https://www.graalvm.org/docs/reference-manual/languages/jvm/</a>
+</div>
+<div class=footnote id=_footnotedef_5>
+<a href=#_footnoteref_5>5</a>. <a href=https://lburgazzoli.github.io/2018/09/04/Adventures-in-GraalVM-polyglot-Camel-routes-with-native-image.html class=bare>https://lburgazzoli.github.io/2018/09/04/Adventures-in-GraalVM-polyglot-Camel-routes-with-native-image.html</a>
+</div>
+<div class=footnote id=_footnotedef_6>
+<a href=#_footnoteref_6>6</a>. <a href=https://github.com/graalvm/graaljs/blob/master/CHANGELOG.md#version-100-rc13 class=bare>https://github.com/graalvm/graaljs/blob/master/CHANGELOG.md#version-100-rc13</a>
+</div>
+</div>
+</div>
+</main>
+<footer>
+<p class="copyright text-muted">© All rights reserved. Powered by <a href=https://gohugo.io>Hugo</a> and <a href=https://github.com/calintat/minimal>Minimal</a>.</p>
+</footer>
+</body>
+</html>

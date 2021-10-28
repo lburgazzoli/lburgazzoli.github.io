@@ -1,0 +1,355 @@
+<!doctype html><html lang=en-us>
+<head>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>A camel running in the clouds</title>
+<style>html body{font-family:raleway,sans-serif;background-color:#d3d3d3}:root{--accent:black;--border-width:5px}</style>
+<link rel=stylesheet href=https://lburgazzoli.github.io/css/main.css>
+<link rel=stylesheet href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css>
+<link rel=stylesheet href=https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css crossorigin=anonymous>
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin=anonymous>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/go.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/java.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/rust.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/python.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/groovy.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/ini.min.js></script>
+<script>hljs.initHighlightingOnLoad()</script>
+<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js></script>
+<script src=https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js integrity=sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa crossorigin=anonymous></script>
+<script>$(document).on('click',function(){$('.collapse').collapse('hide')})</script>
+<meta name=generator content="Hugo 0.88.1">
+<script type=text/javascript async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+<nav class="navbar navbar-default navbar-fixed-top">
+<div class=container>
+<div class=navbar-header>
+<a class="navbar-brand visible-xs" href=#>A camel running in the clouds</a>
+<button class=navbar-toggle data-target=.navbar-collapse data-toggle=collapse>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+</button>
+</div>
+<div class="collapse navbar-collapse">
+<ul class="nav navbar-nav">
+<li><a href=/>Home</a></li>
+<li><a href=/about/>About</a></li>
+<li><a href=/blog/>Blog</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<li class=navbar-icon><a href=https://github.com/lburgazzoli/><i class="fab fa-github"></i></a></li>
+<li class=navbar-icon><a href=https://twitter.com/lburgazzoli/><i class="fab fa-twitter"></i></a></li>
+<li class=navbar-icon><a href=https://www.linkedin.com/in/lucaburgazzoli><i class="fab fa-linkedin"></i></a></li>
+</ul>
+</div>
+</div>
+</nav>
+<main>
+<div>
+<h2>A camel running in the clouds</h2>
+<h5></h5>
+<a href=https://lburgazzoli.github.iotags/camel><kbd class=item-tag>camel</kbd></a>
+<a href=https://lburgazzoli.github.iotags/spring-boot><kbd class=item-tag>spring-boot</kbd></a>
+<a href=https://lburgazzoli.github.iotags/spring-cloud><kbd class=item-tag>spring-cloud</kbd></a>
+<a href=https://lburgazzoli.github.iotags/microservices><kbd class=item-tag>microservices</kbd></a>
+<a href=https://lburgazzoli.github.iotags/cloud><kbd class=item-tag>cloud</kbd></a>
+</div>
+<div align=start class=content><div class=sect1>
+<h2 id=_camel_and_spring_boot>Camel and Spring Boot</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Camel supports Spring Boot since Camel 2.15 but in the latest release we have improved Camel to make it a first class citizen of Spring Boot, some notables improvements available as of Camel 2.18 are:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p>spring boot starters</p>
+</li>
+<li>
+<p>spring boot auto configuration</p>
+</li>
+<li>
+<p>spring boot healt check</p>
+</li>
+</ul>
+</div>
+<div class=paragraph>
+<p>In Camel 2.19 we’ll furter improve the integration between Camel and Spring Boot and it will include support for Spring Cloud.</p>
+</div>
+<div class=sect2>
+<h3 id=_meet_camel_spring_cloud>Meet Camel Spring Cloud</h3>
+<div class=paragraph>
+<p>Spring Cloud <sup class=footnote>[<a id=_footnoteref_1 class=footnote href=#_footnotedef_1 title="View footnote.">1</a>]</sup> provides an implementation of some common pattern in distributed system like:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p>configuration management</p>
+</li>
+<li>
+<p>service discovery</p>
+</li>
+<li>
+<p>load balancing</p>
+</li>
+</ul>
+</div>
+<div class=paragraph>
+<p>The initial support for Spring Cloud in Camel leverages service discovery and load balancing to provide an implementation of the ServiceCall EIP <sup class=footnote>[<a id=_footnoteref_2 class=footnote href=#_footnotedef_2 title="View footnote.">2</a>]</sup> so that you can easilly call remote services with minimal efforts.</p>
+</div>
+<div class=paragraph>
+<p>Let’s build a simple load balanced ServiceCall in OpenShift</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Note</div>
+</td>
+<td class=content>
+<div class=paragraph>
+<p>I’ll show the relevant parts here, full code is available on <a href=https://github.com/lburgazzoli/camel-cloud>github</a></p>
+</div>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class=sect3>
+<h4 id=_bill_of_materials>Bill of materials</h4>
+<div class=ulist>
+<ul>
+<li>
+<p>Minishift <sup class=footnote>[<a id=_footnoteref_3 class=footnote href=#_footnotedef_3 title="View footnote.">3</a>]</sup></p>
+</li>
+<li>
+<p>Apache Maven</p>
+</li>
+<li>
+<p>Fabri8 Maven Plugin <sup class=footnote>[<a id=_footnoteref_4 class=footnote href=#_footnotedef_4 title="View footnote.">4</a>]</sup></p>
+</li>
+<li>
+<p>Spring Boot</p>
+</li>
+<li>
+<p>Spring Cloud Commons</p>
+</li>
+<li>
+<p>Spring Cloud Netflix</p>
+</li>
+<li>
+<p>Spring Cloud Kubernetes</p>
+</li>
+<li>
+<p>Apache Camel 2.19.0-SNAPSHOT</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock important">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Important</div>
+</td>
+<td class=content>
+<div class=paragraph>
+<p>Spring Cloud Kubernetes is now part of Spring Cloud Incubator <sup class=footnote>[<a id=_footnoteref_5 class=footnote href=#_footnotedef_5 title="View footnote.">5</a>]</sup> but we are still using the version from fabric8io <sup class=footnote>[<a id=_footnoteref_6 class=footnote href=#_footnotedef_6 title="View footnote.">6</a>]</sup> to let the migration process to complete</p>
+</div>
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class=sect3>
+<h4 id=_set_up_a_simple_rest_web_service>Set up a simple REST Web Service</h4>
+<div class=paragraph>
+<p>Thanks to Spring Boot, writing a simple REST Web Service is really trivial:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>@RestController
+public class ServiceController {
+    @RequestMapping(&#34;/hello&#34;)
+    public String hello() {
+        return &#34;Hello from &#34; + System.getenv(&#34;POD_NAME&#34;);
+    }
+}</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Now, let’s write a OpenShift descriptor to start two replicas of the Web Service we have created:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-yaml data-lang=yaml>spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        -
+          env:
+          - name: SPRING_APPLICATION_NAME
+            value: camel-cloud-svc
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Thanks to the Fabric8 Maven Plugin, deploying our Web Service is a matter of a single command:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code>$ mvn fabric8:deploy
+
+...
+
+$ oc get pods
+NAME                          READY     STATUS      RESTARTS   AGE
+camel-cloud-svc-1-deploy      1/1       Running     0          27s
+camel-cloud-svc-1-ojyy6       0/1       Running     0          24s
+camel-cloud-svc-1-sbkbi       0/1       Running     0          24s
+camel-cloud-svc-s2i-2-build   0/1       Completed   0          55s</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>If you looks at the endpoints you’ll see the internal addresses our Web Service is listening to and its name:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code>$ oc get endpoints
+NAME              ENDPOINTS                         AGE
+camel-cloud-svc   172.17.0.3:8080,172.17.0.5:8080   2m</code></pre>
+</div>
+</div>
+</div>
+<div class=sect3>
+<h4 id=_set_up_a_simple_camel_route>Set up a simple Camel Route</h4>
+<div class=paragraph>
+<p>Thanks to Spring Boot, Spring Cloud and Camel Spring Cloud writing a simple route that invokes the Web Services we have deployed above is really easy:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>@Configuration
+public class ConsumerConfiguration {
+    @Bean
+    public RouteBuilder routeBuilder() {
+        return new RouteBuilder() {
+            @Override
+            public void configure() throws Exception {
+                from(&#34;timer:service-call?period=1s&#34;)
+                    .serviceCall(&#34;camel-cloud-svc/hello&#34;) <b class=conum>(1)</b>
+                    .convertBodyTo(String.class)
+                        .to(&#34;log:service.consumer?level=INFO&amp;showAll=tru&amp;multiline=true&#34;);
+            }
+        };
+    }
+}</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>The only thing you need to configure the Service Call EIP: the name of the service and its context path</p>
+</li>
+</ol>
+</div>
+<div class=paragraph>
+<p>Thanks to the Fabric8 Maven Plugin, running our Web Service Consumer is a matter of a single command:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code>$ mvn fabric8:run
+
+...
+
+[INFO] F8: 2016-12-21 17:35:25.473  INFO 1 --- [://service-call] service.consumer : Exchange[
+[INFO] F8: , ExchangePattern: InOnly
+[INFO] F8: , BodyType: String
+[INFO] F8: , Body: Hello from camel-cloud-svc-1-sbkbi <b class=conum>(1)</b>
+[INFO] F8: ]
+[INFO] F8: 2016-12-21 17:35:25.563  INFO 1 --- [://service-call] service.consumer : Exchange[
+[INFO] F8: , ExchangePattern: InOnly
+[INFO] F8: , BodyType: String
+[INFO] F8: , Body: Hello from camel-cloud-svc-1-ojyy6 <b class=conum>(2)</b>
+[INFO] F8: ]</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>Web Service invoked on POD camel-cloud-svc-1-sbkbi</p>
+</li>
+<li>
+<p>Web Service invoked on POD camel-cloud-svc-1-ojyy6</p>
+</li>
+</ol>
+</div>
+</div>
+<div class=sect3>
+<h4 id=_wrap_up>Wrap up</h4>
+<div class=paragraph>
+<p>What’s happen under the hood ?</p>
+</div>
+<div class="olist arabic">
+<ol class=arabic>
+<li>
+<p>Spring Cloud Kubernetes automatically creates a DiscoveryClient which is used to lookup services by name</p>
+</li>
+<li>
+<p>Spring Cloud Commons/Netflix automatically creates a LoadBalancerClient which leverages Netflix’s Ribbon for load balancing</p>
+</li>
+<li>
+<p>Camel Spring Cloud automatically configure the SerivceCall EIP to use the LoadBalancerClient created by Spring Cloud</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Warning</div>
+</td>
+<td class=content>
+This is a work in progress so things may change in the next future.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id=footnotes>
+<hr>
+<div class=footnote id=_footnotedef_1>
+<a href=#_footnoteref_1>1</a>. <a href=http://projects.spring.io/spring-cloud/ class=bare>http://projects.spring.io/spring-cloud/</a>
+</div>
+<div class=footnote id=_footnotedef_2>
+<a href=#_footnoteref_2>2</a>. <a href=http://camel.apache.org/servicecall-eip.html class=bare>http://camel.apache.org/servicecall-eip.html</a>
+</div>
+<div class=footnote id=_footnotedef_3>
+<a href=#_footnoteref_3>3</a>. <a href=https://github.com/minishift/minishift class=bare>https://github.com/minishift/minishift</a>
+</div>
+<div class=footnote id=_footnotedef_4>
+<a href=#_footnoteref_4>4</a>. <a href=https://maven.fabric8.io/ class=bare>https://maven.fabric8.io/</a>
+</div>
+<div class=footnote id=_footnotedef_5>
+<a href=#_footnoteref_5>5</a>. <a href=https://github.com/spring-cloud-incubator/spring-cloud-kubernetes class=bare>https://github.com/spring-cloud-incubator/spring-cloud-kubernetes</a>
+</div>
+<div class=footnote id=_footnotedef_6>
+<a href=#_footnoteref_6>6</a>. <a href=https://github.com/fabric8io/spring-cloud-kubernetes/ class=bare>https://github.com/fabric8io/spring-cloud-kubernetes/</a>
+</div>
+</div>
+</div>
+</main>
+<footer>
+<p class="copyright text-muted">© All rights reserved. Powered by <a href=https://gohugo.io>Hugo</a> and <a href=https://github.com/calintat/minimal>Minimal</a>.</p>
+</footer>
+</body>
+</html>

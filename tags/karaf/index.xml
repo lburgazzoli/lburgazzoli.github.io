@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>karaf on .: LB :.</title><link>https://lburgazzoli.github.io/tags/karaf/</link><description>Recent content in karaf on .: LB :.</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Mon, 24 Oct 2016 00:00:00 +0000</lastBuildDate><atom:link href="https://lburgazzoli.github.io/tags/karaf/index.xml" rel="self" type="application/rss+xml"/><item><title>def µsvc = Fabric8.apply(karaf).andThen(camel)</title><link>https://lburgazzoli.github.io/blog/2016-10-24-def-svc-fabric8applykarafand-thencamel/</link><pubDate>Mon, 24 Oct 2016 00:00:00 +0000</pubDate><guid>https://lburgazzoli.github.io/blog/2016-10-24-def-svc-fabric8applykarafand-thencamel/</guid><description>Fabric8 is an amazing microservice platform which not only provide all the building blocks needed to effectively impement microservices but also a number of high quality open-source libraries and tools that every developer could leverage to ease the integration with Kubernetes/OpenShift.
+Some of the bits fabric8 provides are:
+OpenShift/Kubernetes Client
+Spring Cloud Kubernetes
+Fabric8 Karaf
+Fabric8 Maven Plugin
+As we are brave, we won’t talk about doing Microservices with Spring Boot but we’ll go with Apache Karaf and Apache Camel.</description></item></channel></rss>

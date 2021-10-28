@@ -1,0 +1,180 @@
+<!doctype html><html lang=en-us>
+<head>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Adventures in GraalVM: polyglot Camel routes with native-image</title>
+<style>html body{font-family:raleway,sans-serif;background-color:#d3d3d3}:root{--accent:black;--border-width:5px}</style>
+<link rel=stylesheet href=https://lburgazzoli.github.io/css/main.css>
+<link rel=stylesheet href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css>
+<link rel=stylesheet href=https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css crossorigin=anonymous>
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin=anonymous>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/go.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/java.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/rust.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/python.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/groovy.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/ini.min.js></script>
+<script>hljs.initHighlightingOnLoad()</script>
+<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js></script>
+<script src=https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js integrity=sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa crossorigin=anonymous></script>
+<script>$(document).on('click',function(){$('.collapse').collapse('hide')})</script>
+<meta name=generator content="Hugo 0.88.1">
+<script type=text/javascript async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+<nav class="navbar navbar-default navbar-fixed-top">
+<div class=container>
+<div class=navbar-header>
+<a class="navbar-brand visible-xs" href=#>Adventures in GraalVM: polyglot Camel routes with native-image</a>
+<button class=navbar-toggle data-target=.navbar-collapse data-toggle=collapse>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+</button>
+</div>
+<div class="collapse navbar-collapse">
+<ul class="nav navbar-nav">
+<li><a href=/>Home</a></li>
+<li><a href=/about/>About</a></li>
+<li><a href=/blog/>Blog</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<li class=navbar-icon><a href=https://github.com/lburgazzoli/><i class="fab fa-github"></i></a></li>
+<li class=navbar-icon><a href=https://twitter.com/lburgazzoli/><i class="fab fa-twitter"></i></a></li>
+<li class=navbar-icon><a href=https://www.linkedin.com/in/lucaburgazzoli><i class="fab fa-linkedin"></i></a></li>
+</ul>
+</div>
+</div>
+</nav>
+<main>
+<div>
+<h2>Adventures in GraalVM: polyglot Camel routes with native-image</h2>
+<h5></h5>
+<a href=https://lburgazzoli.github.iotags/camel><kbd class=item-tag>camel</kbd></a>
+<a href=https://lburgazzoli.github.iotags/graalvm><kbd class=item-tag>graalvm</kbd></a>
+<a href=https://lburgazzoli.github.iotags/scripting><kbd class=item-tag>scripting</kbd></a>
+</div>
+<div align=start class=content><div class=paragraph>
+<p>I’ve recently been playing with Camel to leverage JavaScript to define routes<sup class=footnote>[<a id=_footnoteref_1 class=footnote href=#_footnotedef_1 title="View footnote.">1</a>]</sup> and GraalVM to invoke JavaScript from a native image<sup class=footnote>[<a id=_footnoteref_2 class=footnote href=#_footnotedef_2 title="View footnote.">2</a>]</sup> so let’s try to make them working together!</p>
+</div>
+<div class=paragraph>
+<p>As GraalVM as of RC6 does not (yet) support reflective access from scripting context back to Java world we need to use some proxy object GraalVM SDK provides, something like:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>private Proxy createRouteDefinitionProxy(RouteDefinition def) {
+    Map&lt;String, Object&gt; methods = new HashMap&lt;&gt;();
+
+    methods.put(&#34;to&#34;, (ProxyExecutable) args -&gt; {
+        if (args.length != 1) {
+            throw new IllegalArgumentException(&#34;&#34;);
+        }
+
+        // wrap the definition with a new
+        // proxy
+        return createRouteDefinitionProxy(
+            def.to(args[0].asString())
+        );
+    });
+
+    methods.put(&#34;setBody&#34;, (ProxyExecutable) args -&gt; {
+        if (args.length != 1) {
+            throw new IllegalArgumentException(&#34;&#34;);
+        }
+
+        // assuming we only use strings in js
+        def.setBody().constant(args[0].asString());
+
+        // wrap the definition with a new
+        // proxy
+        return createRouteDefinitionProxy(def);
+    });
+
+    methods.put(&#34;setHeader&#34;, (ProxyExecutable) args -&gt; {
+        if (args.length != 2) {
+            throw new IllegalArgumentException(&#34;&#34;);
+        }
+
+        // assuming we only use strings in js
+        final String key = args[0].asString();
+        final String val = args[0].asString();
+
+        def.setHeader(key).constant(val);
+
+        // wrap the definition with a new
+        // proxy
+        return createRouteDefinitionProxy(def);
+    });
+
+    return ProxyObject.fromMap(methods);
+}</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Now, let’s write a simple JavaScript route:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-javascript data-lang=javascript>from(&#39;timer:js&#39;)
+    .setBody(&#39;test&#39;)
+    .to(&#39;log:js&#39;)</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>And finally, let’s run it:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code>$ ./target/org.apache.camel.graalvm.main src/main/resources/route.js
+[main] INFO org.apache.camel.graalvm.FastCamelContext - Apache Camel 2.23.0-SNAPSHOT (CamelContext: camel-1) is starting
+[main] INFO org.apache.camel.graalvm.FastCamelContext - StreamCaching is not in use. If using streams then its recommended to enable stream caching. See more details at http://camel.apache.org/stream-caching.html
+[main] INFO org.apache.camel.graalvm.FastCamelContext - Route: route1 started and consuming from: timer://js
+[main] INFO org.apache.camel.graalvm.FastCamelContext - Total 1 routes, of which 1 are started
+[main] INFO org.apache.camel.graalvm.FastCamelContext - Apache Camel 2.23.0-SNAPSHOT (CamelContext: camel-1) started in 0.001 seconds
+[Camel (camel-1) thread #0 - timer://js] INFO js - Exchange[ExchangePattern: InOnly, BodyType: String, Body: test]
+[Camel (camel-1) thread #0 - timer://js] INFO js - Exchange[ExchangePattern: InOnly, BodyType: String, Body: test]
+[Camel (camel-1) thread #0 - timer://js] INFO js - Exchange[ExchangePattern: InOnly, BodyType: String, Body: test]
+[Camel (camel-1) thread #0 - timer://js] INFO js - Exchange[ExchangePattern: InOnly, BodyType: String, Body: test]
+[Camel (camel-1) thread #0 - timer://js] INFO js - Exchange[ExchangePattern: InOnly, BodyType: String, Body: test]
+[Camel (camel-1) thread #0 - timer://js] INFO js - Exchange[ExchangePattern: InOnly, BodyType: String, Body: test]</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Beside seing the route running, please note how fast the camel context has been started: <strong>0.001 seconds</strong></p>
+</div>
+<div class=paragraph>
+<p>Full example can be found <a href=https://github.com/lburgazzoli/camel-routes-loader-graalvm>here</a></p>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Caution</div>
+</td>
+<td class=content>
+<div class=paragraph>
+<p>This is a very initial prototype so only a very limited subset of features has been opionantely implemented.</p>
+</div>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div id=footnotes>
+<hr>
+<div class=footnote id=_footnotedef_1>
+<a href=#_footnoteref_1>1</a>. <a href=https://lburgazzoli.github.io/2018/07/29/Polyglot-Camel-Routes.html class=bare>https://lburgazzoli.github.io/2018/07/29/Polyglot-Camel-Routes.html</a>
+</div>
+<div class=footnote id=_footnotedef_2>
+<a href=#_footnoteref_2>2</a>. <a href=https://lburgazzoli.github.io/2018/08/06/Adventures-in-GraalVM-invoke-Java-code-from-JS-in-native-image.html class=bare>https://lburgazzoli.github.io/2018/08/06/Adventures-in-GraalVM-invoke-Java-code-from-JS-in-native-image.html</a>
+</div>
+</div>
+</div>
+</main>
+<footer>
+<p class="copyright text-muted">© All rights reserved. Powered by <a href=https://gohugo.io>Hugo</a> and <a href=https://github.com/calintat/minimal>Minimal</a>.</p>
+</footer>
+</body>
+</html>

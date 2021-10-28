@@ -1,0 +1,383 @@
+<!doctype html><html lang=en-us>
+<head>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Apache Camel features spotlight: Cluster Service</title>
+<style>html body{font-family:raleway,sans-serif;background-color:#d3d3d3}:root{--accent:black;--border-width:5px}</style>
+<link rel=stylesheet href=https://lburgazzoli.github.io/css/main.css>
+<link rel=stylesheet href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css>
+<link rel=stylesheet href=https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css crossorigin=anonymous>
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin=anonymous>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/go.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/java.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/rust.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/python.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/groovy.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/ini.min.js></script>
+<script>hljs.initHighlightingOnLoad()</script>
+<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js></script>
+<script src=https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js integrity=sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa crossorigin=anonymous></script>
+<script>$(document).on('click',function(){$('.collapse').collapse('hide')})</script>
+<meta name=generator content="Hugo 0.88.1">
+<script type=text/javascript async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+<nav class="navbar navbar-default navbar-fixed-top">
+<div class=container>
+<div class=navbar-header>
+<a class="navbar-brand visible-xs" href=#>Apache Camel features spotlight: Cluster Service</a>
+<button class=navbar-toggle data-target=.navbar-collapse data-toggle=collapse>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+</button>
+</div>
+<div class="collapse navbar-collapse">
+<ul class="nav navbar-nav">
+<li><a href=/>Home</a></li>
+<li><a href=/about/>About</a></li>
+<li><a href=/blog/>Blog</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<li class=navbar-icon><a href=https://github.com/lburgazzoli/><i class="fab fa-github"></i></a></li>
+<li class=navbar-icon><a href=https://twitter.com/lburgazzoli/><i class="fab fa-twitter"></i></a></li>
+<li class=navbar-icon><a href=https://www.linkedin.com/in/lucaburgazzoli><i class="fab fa-linkedin"></i></a></li>
+</ul>
+</div>
+</div>
+</nav>
+<main>
+<div>
+<h2>Apache Camel features spotlight: Cluster Service</h2>
+<h5></h5>
+<a href=https://lburgazzoli.github.iotags/camel><kbd class=item-tag>camel</kbd></a>
+<a href=https://lburgazzoli.github.iotags/clustering><kbd class=item-tag>clustering</kbd></a>
+</div>
+<div align=start class=content><div class=paragraph>
+<p>In Apache Camel 2.20.0 we have introduced an initial support for native clustering named <strong>Camel Cluster Service</strong> for which my colleague <a href=https://www.nicolaferraro.me><strong>Nicola Ferraro</strong></a> has wrote a really nice post about how to use this feature to create singleton services on Kubernetes <sup class=footnote>[<a id=_footnoteref_1 class=footnote href=#_footnotedef_1 title="View footnote.">1</a>]</sup>, here we are going to talk a little bit more about how the service works.</p>
+</div>
+<div class=sect1>
+<h2 id=_concepts>Concepts</h2>
+<div class=sectionbody>
+<div class=ulist>
+<ul>
+<li>
+<p><strong>Cluster Service</strong> is a regular camel service that runs in background and is responsible to manage cluster objects. Apache Camel 2.20 comes with a single object type named <strong>Cluster View</strong> but more objects will come in the next releases.</p>
+</li>
+<li>
+<p><strong>Cluster View</strong> represent a view of the cluster with its own set of isolated resource (events happing on a view should not be propagated outside the view) and as today the following events are supported:</p>
+<div class=ulist>
+<ul>
+<li>
+<p>Leadership events</p>
+</li>
+<li>
+<p>Topology events (members joining or leaving the view)</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_service_set_up>Service set-up</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>As the Cluster Service is implemented as standard camel service you only need to bind the service to your camel context.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Note</div>
+</td>
+<td class=content>
+Cluster Services instances found on the Camel Registry are automatically added to the context
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class=paragraph>
+<p>Out of the box Camel provides the following implementations:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<col style=width:20%>
+<col style=width:20%>
+<col style=width:60%>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Type</th>
+<th class="tableblock halign-left valign-top">Module</th>
+<th class="tableblock halign-left valign-top">Class</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>atomix</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>camel-atomix</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>org.apache.camel.component.atomix.ha.AtomixClusterService</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>consul</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>camel-consul</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>org.apache.camel.component.consul.ha.ConsulClusterService</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>file</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>camel-core</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>org.apache.camel.component.file.ha.FileLockClusterService</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>jgroups</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>camel-jgroups</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>org.apache.camel.component.file.ha.FileLockClusterService</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>kubernetes</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>camel-kubernetes</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>org.apache.camel.component.jgroups.ha.JGroupsLockClusterService</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>zookeeper</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>camel-zookeeper</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>org.apache.camel.component.zookeeper.ha.ZooKeeperClusterService</p></td>
+</tr>
+</tbody>
+</table>
+<div class=paragraph>
+<p>Each cluster service has a set of configuration that are implementation dependent and a few common configurations:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<col style=width:20%>
+<col style=width:20%>
+<col style=width:60%>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Option</th>
+<th class="tableblock halign-left valign-top">Mandatory</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>id</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>implementation dependent</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>The identifier of the context in the cluster</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>order</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>false</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>The order of the service</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class=content><div class=paragraph>
+<p><strong>attributes</strong></p>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>false</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>A key value map of attributes associated to the service</p></td>
+</tr>
+</tbody>
+</table>
+<div class=sect2>
+<h3 id=_springblueprint_xml>Spring/Blueprint XML</h3>
+<div class=paragraph>
+<p>As <em>Cluster Services</em> added to the registry are automatically discovered, you only need to add a bean definition like:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-xml data-lang=xml>&lt;bean id=&#34;zx&#34; class=&#34;org.apache.camel.component.zookeeper.ha.ZooKeeperClusterService&#34;&gt;
+  &lt;property name=&#34;id&#34; value=&#34;node-1&#34;/&gt;
+  &lt;property name=&#34;basePath&#34; value=&#34;/camel/ha&#34;/&gt;
+  &lt;property name=&#34;nodes&#34; value=&#34;zk-node:2181&#34;/&gt;
+&lt;/bean&gt;</code></pre>
+</div>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_spring_boot>Spring Boot</h3>
+<div class=paragraph>
+<p>Each camel component that provides a <em>Cluster Service</em> implementation has a related spring-boot starter that make it possible to configure the service using properties, as example:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-properties data-lang=properties>camel.component.zookeeper.cluster.service.enabled = true
+camel.component.zookeeper.cluster.service.id = ${random.uuid}
+camel.component.zookeeper.cluster.service.base-path = /camel/ha
+camel.component.zookeeper.cluster.service.nodes = zk-node:2181</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Note</div>
+</td>
+<td class=content>
+Cluster Service instances are not automatically enabled on Spring Boot.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_service_usage>Service usage</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Once the <em>Cluster Service</em> is set-up you can leverage it using one of the following options:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p><strong>ClusteredRoutePolicy</strong></p>
+<div class=paragraph>
+<p>A <em>ClusteredRoutePolicy</em> is an implementation of the <em>RoutePolicy API</em> that take control of the associated route and start it when the view acquire the leadership</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>RoutePolicy policy = ClusteredRoutePolicy.forNamespace(&#34;my-ns&#34;);
+
+// bind the policy to one or more routes
+from(&#34;timer:clustered?delay=1s&amp;period=1s&#34;)
+    .routePolicy(policy)
+    .log(&#34;Route ${routeId} is running ...&#34;);</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Note</div>
+</td>
+<td class=content>
+A dedicated <em>ClusteredRoutePolicyFactory</em> is provided to apply the policy to every route of the context.
+</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p><strong>Master component</strong></p>
+<div class=paragraph>
+<p>A re-implementation of the JBoss Fuse master component that leverages the new <em>Cluster Service APIs</em></p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>from(&#34;master:my-ns:timer:clustered?period=5s&#34;)
+    .routeId(&#34;clustered&#34;)
+    .log(&#34;Clustered route (timer) ...&#34;);</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p><strong>ClusteredRouteController</strong></p>
+<div class=paragraph>
+<p>This is an implementation of the experimental <em>RouteController SPI</em> that let the context to start up then it starts the routes when the associated views acquire the leadership. On Spring boot, the controller is easily configurable through properties:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-properties data-lang=properties># enable the route controller
+camel.clustered.controller.enabled = true
+
+# define the default namespace for routes
+camel.clustered.controller.namespace = my-ns
+
+# exlude the route with id &#39;heartbeat&#39; from the clustered ones
+camel.clustered.controller.routes[heartbeat].clustered = false</code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Tip</div>
+</td>
+<td class=content>
+<div class=paragraph>
+<p>By leveraging camel spring-boot starters, you can enable clustering without code changes.</p>
+</div>
+</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_advanced_usage>Advanced usage</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Although in most of the cases you just want to use a single clustering technology, you can add multiple <em>Cluster Services</em> to a camel context and in that case route policies, master component and so on would use the first implementation found unless you set a service selector:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>RoutePolicy policy1 = ClusteredRoutePolicy.forNamespace(
+  ClusterServiceSelectors.attribute(&#34;service.type&#34;, &#34;consul&#34;)
+  &#34;my-ns&#34;
+);
+
+RoutePolicy policy1 = ClusteredRoutePolicy.forNamespace(
+  ClusterServiceSelectors.attribute(&#34;service.type&#34;, &#34;zk&#34;)
+  &#34;my-ns&#34;
+);
+
+from(&#34;timer:consul&#34;)
+    .routePolicy(policy1)
+    .log(&#34;Route ${routeId} is running ...&#34;);
+from(&#34;timer:zk&#34;)
+    .routePolicy(policy2)
+    .log(&#34;Route ${routeId} is running ...&#34;);</code></pre>
+</div>
+</div>
+<hr>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Warning</div>
+</td>
+<td class=content>
+<em>ClusterService</em> is an experimental feature which will be improved in the next Camel releases.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div id=footnotes>
+<hr>
+<div class=footnote id=_footnotedef_1>
+<a href=#_footnoteref_1>1</a>. <a href=https://www.nicolaferraro.me/2017/10/17/creating-clustered-singleton-services-on-kubernetes/>Creating Clustered Singleton Services on Kubernetes</a>
+</div>
+</div>
+</div>
+</main>
+<footer>
+<p class="copyright text-muted">© All rights reserved. Powered by <a href=https://gohugo.io>Hugo</a> and <a href=https://github.com/calintat/minimal>Minimal</a>.</p>
+</footer>
+</body>
+</html>

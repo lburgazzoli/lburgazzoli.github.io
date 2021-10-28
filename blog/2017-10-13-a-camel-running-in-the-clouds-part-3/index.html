@@ -1,0 +1,502 @@
+<!doctype html><html lang=en-us>
+<head>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>A camel running in the clouds (part 3)</title>
+<style>html body{font-family:raleway,sans-serif;background-color:#d3d3d3}:root{--accent:black;--border-width:5px}</style>
+<link rel=stylesheet href=https://lburgazzoli.github.io/css/main.css>
+<link rel=stylesheet href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css>
+<link rel=stylesheet href=https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css crossorigin=anonymous>
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin=anonymous>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/go.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/java.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/rust.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/python.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/groovy.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/ini.min.js></script>
+<script>hljs.initHighlightingOnLoad()</script>
+<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js></script>
+<script src=https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js integrity=sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa crossorigin=anonymous></script>
+<script>$(document).on('click',function(){$('.collapse').collapse('hide')})</script>
+<meta name=generator content="Hugo 0.88.1">
+<script type=text/javascript async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+<nav class="navbar navbar-default navbar-fixed-top">
+<div class=container>
+<div class=navbar-header>
+<a class="navbar-brand visible-xs" href=#>A camel running in the clouds (part 3)</a>
+<button class=navbar-toggle data-target=.navbar-collapse data-toggle=collapse>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+</button>
+</div>
+<div class="collapse navbar-collapse">
+<ul class="nav navbar-nav">
+<li><a href=/>Home</a></li>
+<li><a href=/about/>About</a></li>
+<li><a href=/blog/>Blog</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<li class=navbar-icon><a href=https://github.com/lburgazzoli/><i class="fab fa-github"></i></a></li>
+<li class=navbar-icon><a href=https://twitter.com/lburgazzoli/><i class="fab fa-twitter"></i></a></li>
+<li class=navbar-icon><a href=https://www.linkedin.com/in/lucaburgazzoli><i class="fab fa-linkedin"></i></a></li>
+</ul>
+</div>
+</div>
+</nav>
+<main>
+<div>
+<h2>A camel running in the clouds (part 3)</h2>
+<h5></h5>
+<a href=https://lburgazzoli.github.iotags/camel><kbd class=item-tag>camel</kbd></a>
+<a href=https://lburgazzoli.github.iotags/microservices><kbd class=item-tag>microservices</kbd></a>
+<a href=https://lburgazzoli.github.iotags/cloud><kbd class=item-tag>cloud</kbd></a>
+</div>
+<div align=start class=content><div class=paragraph>
+<p>In a micro-service/cloud oriented architecture it becomes increasingly important to provide a mechanism to detect unhealthy services and an idiomatic way is to provide an health endpoint <sup class=footnote>[<a id=_footnoteref_1 class=footnote href=#_footnotedef_1 title="View footnote.">1</a>]</sup>. <strong>Apache Camel 2.20.0</strong> provides an experimental support footnoteref:officialdoc[Official camel Health Check <a href=https://github.com/apache/camel/blob/master/camel-core/src/main/docs/health-check.adoc>documentation</a>] to probe the state of a Camel integration through a dedicated set of APIs and endpoints.</p>
+</div>
+<div class=sect1>
+<h2 id=_health_checks_api>Health Checks API</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>The APIsfootnoteref:officialdoc[] are available in <code>camel-core</code> and belong to the package <code>org.apache.camel.health</code>, the most relevant are:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p><strong>HealthCheck</strong></p>
+</li>
+<li>
+<p><strong>HealthCheckResponse</strong></p>
+</li>
+<li>
+<p><strong>HealthCheckConfiguration</strong></p>
+</li>
+<li>
+<p><strong>HealthCheckRegistry</strong></p>
+</li>
+<li>
+<p><strong>HealthCheckRepository</strong></p>
+</li>
+<li>
+<p><strong>HealthCheckService</strong></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_health_checks_endpoints>Health Checks Endpoints</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>By default each camel context exposes an health endpoint through JMX (if management is enabled) and when running in a Spring Boot environment a dedicated endpoint is created with the possibility to contribute to the global Spring Boot health endpoint.</p>
+</div>
+<div class=sect2>
+<h3 id=_jmx_endpoint>JMX Endpoint</h3>
+<div class=paragraph>
+<p>Let assume we have the following simple camel application:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>CamelContext context = new DefaultCamelContext();
+context.addRoutes(new RouteBuilder() {
+    @Override
+    public void configure() {
+        from(&#34;undertow:http://localhost:8081&#34;)
+            .routeId(&#34;inbound&#34;)
+            .to(&#34;undertow:http://wrong.host&#34;);
+    }
+});</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Assuming camel context name is 'camel-1', by default there is a new JMX endpoint registered with the following ObjectName:</p>
+</div>
+<div class=literalblock>
+<div class=content>
+<pre>org.apache.camel:context=camel-1,type=health,name=&#34;camel-1&#34;</pre>
+</div>
+</div>
+<div class=paragraph>
+<p>with the following two attributes:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<col style=width:50%>
+<col style=width:50%>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>HealthChecksIDs</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>[]</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>IsHealthy</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>true</p></td>
+</tr>
+</tbody>
+</table>
+<div class=paragraph>
+<p>As there are no health checks configured, the HealthChecksIDs is empty and IsHealthy is true.
+An easy way to add health checks is to use one or more implementation of the <code>HealthCheckRegistry</code> provided by camel:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p><strong>RegistryRepository</strong></p>
+<div class=paragraph>
+<p>This repository is provisioned by default and collects any <code>HealthCheck</code> instance bound to the Camel Registry.</p>
+</div>
+</li>
+<li>
+<p><strong>RoutesHealthCheckRepository</strong></p>
+<div class=paragraph>
+<p>This repository creates an health check per route.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Tip</div>
+</td>
+<td class=content>
+thresholds can be configured per route or globally.
+</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p><strong>ConsulHealthCheckRepository</strong></p>
+<div class=paragraph>
+<p>This repository is provided by <code>camel-consul</code> module and bridges Consul’s healt checks<sup class=footnote>[<a id=_footnoteref_2 class=footnote href=#_footnotedef_2 title="View footnote.">2</a>]</sup> as Camel Health Checks, so you can mark your context as unhealthy if anything monitored through Consul is reported as unhealthy.</p>
+</div>
+</li>
+</ul>
+</div>
+<div class=paragraph>
+<p>For a quick example, we can provision an instance of <code>RoutesHealthCheckRepository</code> configured to mark the context as unhealthy after 5 failed exchanges:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>RoutesHealthCheckRepository repo = new RoutesHealthCheckRepository();
+repo.addEvaluator(new RoutePerformanceCounterEvaluators.ExchangesFailed(5));
+
+...
+context.getHealthCheckRegistry().addRepository(repo);
+...</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>If we now run the integration and we invoke the endpoint <code><a href=http://localhost:8081 class=bare>http://localhost:8081</a></code> more than five times, the JMX endpoint should report that the context is not more healthy:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<col style=width:50%>
+<col style=width:50%>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>HealthChecksIDs</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>[route:inbound]</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>IsHealthy</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>false</p></td>
+</tr>
+</tbody>
+</table>
+<div class=paragraph>
+<p>In addition to the attributes mentioned above, the JMX endpoint has some operations you can invoke:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p><strong>details</strong>, a read only operation which returns information about registered checks as <em>TabularData</em>, each element of the table should looks like:</p>
+<table class="tableblock frame-all grid-all stretch">
+<col style=width:50%>
+<col style=width:50%>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>enabled</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>true</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>failureThreshold</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>group</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>id</p></td>
+<td class="tableblock halign-left valign-top"><p class=tableblock>route:inbound</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>interval</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class=tableblock>state</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p><strong>invoke</strong>, which invokes a check by id and returns its state.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_spring_boot_endpoint>Spring Boot Endpoint</h3>
+<div class=paragraph>
+<p>When running Camel in a Spring Boot application, you can control Camel’s Health Checks and how they are contributed to Spring Boot’s <code>/health</code> endpoint through configuration.</p>
+</div>
+<div class=paragraph>
+<p>The first step is to enable Camel’s Health Checks indicator:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-properties data-lang=properties>camel.health.check.indicator.enabled = true</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Then if you want to leverage Camel’s <code>RoutesHealthCheckRepository</code> as done before, you need to enable it via properties, no code required:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-properties data-lang=properties>camel.health.check.routes.enabled = true</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Now that the <code>RoutesHealthCheckRepository</code> is configured, we can set thresholds:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-properties data-lang=properties># global thresholds
+camel.health.check.routes.thresholds.exchanges-failed = 10
+
+# Thresholds can be set per routes with default values taken from global thresholds
+camel.health.check.routes.threshold[bar].exchanges-failed = 20
+
+# Threshold inheritance can be disabled using the inherit option
+camel.health.check.routes.threshold[slow].inherit = false
+
+# Report unhealthy context after the last processing time is greater than one second for more than
+# five consecutive time
+camel.health.check.routes.threshold[slow].last-processing-time.threshold = 1s
+camel.health.check.routes.threshold[slow].last-processing-time.failures = 5</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>If we invoke the Spring Boot <code>/health</code> endpoint, we should have a response like:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-json data-lang=json>{
+    &#34;camel&#34;: {
+        &#34;contextStatus&#34;: &#34;Started&#34;,
+        &#34;name&#34;: &#34;context-1&#34;,
+        &#34;status&#34;: &#34;UP&#34;,
+        &#34;version&#34;: &#34;2.20.0-SNAPSHOT&#34;
+    },
+    &#34;camel-health-checks&#34;: {
+        &#34;route:bar&#34;: &#34;UP&#34;,
+        &#34;route:foo&#34;: &#34;UP&#34;,
+        &#34;route:slow&#34;: &#34;UP&#34;
+    },
+    &#34;diskSpace&#34;: {
+        &#34;free&#34;: 112750985216,
+        &#34;status&#34;: &#34;UP&#34;,
+        &#34;threshold&#34;: 10485760,
+        &#34;total&#34;: 192459673600
+    },
+    &#34;status&#34;: &#34;UP&#34;
+}</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Detailed information about the checks can be retrieved from additional endpoints that Camel automatically sets up:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p><code>/camel/health/check</code> provides an overview of camel specific checks</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-json data-lang=json>[
+    {
+        &#34;check&#34;: {
+            &#34;group&#34;: &#34;camel&#34;,
+            &#34;id&#34;: &#34;route:foo&#34;
+        },
+        &#34;status&#34;: &#34;UP&#34;
+    },
+    {
+        &#34;check&#34;: {
+            &#34;group&#34;: &#34;camel&#34;,
+            &#34;id&#34;: &#34;route:bar&#34;
+        },
+        &#34;status&#34;: &#34;UP&#34;
+    },
+    {
+        &#34;check&#34;: {
+            &#34;group&#34;: &#34;camel&#34;,
+            &#34;id&#34;: &#34;route:slow&#34;
+        },
+        &#34;status&#34;: &#34;UP&#34;
+    }
+]</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p><code>/camel/health/check/{check-id}</code> provides details about a specific check identified by its id:</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-json data-lang=json>{
+    &#34;check&#34;: {
+        &#34;configuration&#34;: {
+            &#34;enabled&#34;: true
+        },
+        &#34;group&#34;: &#34;camel&#34;,
+        &#34;id&#34;: &#34;route:bar&#34;,
+        &#34;metaData&#34;: {
+            &#34;check.group&#34;: &#34;camel&#34;,
+            &#34;check.id&#34;: &#34;route:bar&#34;,
+            &#34;failure.count&#34;: 2,
+            &#34;invocation.attempt.time&#34;: &#34;2017-10-05T12:44:19.767+02:00[Europe/Rome]&#34;,
+            &#34;invocation.count&#34;: 3,
+            &#34;invocation.time&#34;: &#34;2017-10-05T12:44:19.767+02:00[Europe/Rome]&#34;
+        }
+    },
+    &#34;details&#34;: {
+        &#34;exchanges.failed&#34;: 120,
+        &#34;exchanges.failed.threshold&#34;: 20,
+        &#34;failure.count&#34;: 2,
+        &#34;invocation.count&#34;: 3,
+        &#34;invocation.time&#34;: &#34;2017-10-05T12:44:19.767+02:00[Europe/Rome]&#34;,
+        &#34;route.context.name&#34;: &#34;camel-1&#34;,
+        &#34;route.id&#34;: &#34;bar&#34;,
+        &#34;route.status&#34;: &#34;Started&#34;
+    },
+    &#34;status&#34;: &#34;DOWN&#34;
+}</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+<div class=paragraph>
+<p>Health Checks can be pulled out from Spring Boot’s health endpoint using either the literal id or a regexp.
+Exclusion list can be applied to both the ID or the Group as shown below:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-properties data-lang=properties>camel.health.check.indicator.exclusion.ids[0] = my-.*-2
+camel.health.check.indicator.exclusion.groups[0] = global</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_writing_a_custom_checks>Writing a custom checks</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Of course you may need to provide your own checks and to do so you can leverage <code>AbstractHealthCheck</code>:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-java data-lang=java>public final class MyHealthCheck extends AbstractHealthCheck {
+    public ContextHealthCheck() {
+        super(&#34;camel&#34;, &#34;my-check&#34;);
+
+        // make this check enabled by default.
+        getConfiguration().setEnabled(true);
+    }
+
+    @Override
+    protected void doCall(HealthCheckResultBuilder builder, Map&lt;String, Object&gt; options) {
+        // Add some details to the check result
+        builder.detail(&#34;my.detail.1&#34;, &#34;some detail 1&#34;);
+        builder.detail(&#34;my.detail.2&#34;, &#34;some detail 2&#34;);
+
+        // Report the check as up/down according to a condition
+        if (isNotHealthy) {
+            builder.down();
+        } else {
+            builder.up();
+        }
+    }
+}</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_health_check_service>Health Check Service</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>By default checks are triggered when the JMX or Spring Boot endpoint are invoked but you can enable a background service to automatically invoke the checks according to a specific interval so each endpoint invocation results in a cached result being returned (if checks are not forced to be executed)</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-properties data-lang=properties>camel.health.check.service.enabled = true
+camel.health.check.service.check-interval = 10s</code></pre>
+</div>
+</div>
+<div class="admonitionblock important">
+<table>
+<tbody><tr>
+<td class=icon>
+<div class=title>Important</div>
+</td>
+<td class=content>
+<div class=paragraph>
+<p>Health Checks are an experimental feature which will be improved in the next Camel releases.</p>
+</div>
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div id=footnotes>
+<hr>
+<div class=footnote id=_footnotedef_1>
+<a href=#_footnoteref_1>1</a>. Azure <a href=https://docs.microsoft.com/en-us/azure/architecture/patterns/health-endpoint-monitoring>Health Endpoint</a> pattern
+</div>
+<div class=footnote id=_footnotedef_2>
+<a href=#_footnoteref_2>2</a>. Consul <a href=https://www.consul.io/intro/getting-started/checks.html>Health Checks</a>
+</div>
+</div>
+</div>
+</main>
+<footer>
+<p class="copyright text-muted">© All rights reserved. Powered by <a href=https://gohugo.io>Hugo</a> and <a href=https://github.com/calintat/minimal>Minimal</a>.</p>
+</footer>
+</body>
+</html>
