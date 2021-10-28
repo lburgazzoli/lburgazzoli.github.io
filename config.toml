@@ -2,6 +2,7 @@ baseURL = "https://lburgazzoli.github.io"
 languageCode = "en-us"
 title = ".: LB :."
 theme =[ "minimal" ]
+disqusShortname = "lburgazzoli-github-io"
 
 [params]
     author = "Luca Burgazzoli"
@@ -17,6 +18,8 @@ theme =[ "minimal" ]
     highlight = true
     highlightStyle = "monokai"
     highlightLanguages = ["go", "java", "rust", "python", "groovy", "yaml", "ini"]
+
+
 
 [[menu.main]]
     url = "/"
