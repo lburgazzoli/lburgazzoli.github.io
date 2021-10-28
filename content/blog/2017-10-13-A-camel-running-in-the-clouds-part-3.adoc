@@ -1,0 +1,293 @@
+---
+title: 'A camel running in the clouds (part 3)'
+date: 2017-10-13
+draft: false
+tags:
+- camel
+- microservices
+- cloud
+---
+
+In a micro-service/cloud oriented architecture it becomes increasingly important to provide a mechanism to detect unhealthy services and an idiomatic way is to provide an health endpoint footnote:[Azure https://docs.microsoft.com/en-us/azure/architecture/patterns/health-endpoint-monitoring[Health Endpoint] pattern]. **Apache Camel 2.20.0** provides an experimental support footnoteref:officialdoc[Official camel Health Check https://github.com/apache/camel/blob/master/camel-core/src/main/docs/health-check.adoc[documentation]] to probe the state of a Camel integration through a dedicated set of APIs and endpoints.
+
+== Health Checks API
+
+The APIsfootnoteref:officialdoc[] are available in `camel-core` and belong to the package `org.apache.camel.health`, the most relevant are:
+
+- *HealthCheck*
+- *HealthCheckResponse*
+- *HealthCheckConfiguration*
+- *HealthCheckRegistry*
+- *HealthCheckRepository*
+- *HealthCheckService*
+
+== Health Checks Endpoints
+
+By default each camel context exposes an health endpoint through JMX (if management is enabled) and when running in a Spring Boot environment a dedicated endpoint is created with the possibility to contribute to the global Spring Boot health endpoint.
+
+=== JMX Endpoint
+
+Let assume we have the following simple camel application:
+
+[source,java]
+----
+CamelContext context = new DefaultCamelContext();
+context.addRoutes(new RouteBuilder() {
+    @Override
+    public void configure() {
+        from("undertow:http://localhost:8081")
+            .routeId("inbound")
+            .to("undertow:http://wrong.host");
+    }
+});
+----
+
+Assuming camel context name is 'camel-1', by default there is a new JMX endpoint registered with the following ObjectName:
+
+    org.apache.camel:context=camel-1,type=health,name="camel-1"
+
+with the following two attributes:
+
+[options="header"]
+|===
+|Name|Value
+|HealthChecksIDs|[]
+|IsHealthy| true
+|===
+
+As there are no health checks configured, the HealthChecksIDs is empty and IsHealthy is true.
+An easy way to add health checks is to use one or more implementation of the `HealthCheckRegistry` provided by camel:
+
+- *RegistryRepository*
++
+This repository is provisioned by default and collects any `HealthCheck` instance bound to the Camel Registry.
+
+- *RoutesHealthCheckRepository*
++
+This repository creates an health check per route.
++
+TIP: thresholds can be configured per route or globally.
+
+- *ConsulHealthCheckRepository*
++
+This repository is provided by `camel-consul` module and bridges Consul's healt checksfootnote:[Consul https://www.consul.io/intro/getting-started/checks.html[Health Checks]] as Camel Health Checks, so you can mark your context as unhealthy if anything monitored through Consul is reported as unhealthy.
+
+For a quick example, we can provision an instance of `RoutesHealthCheckRepository` configured to mark the context as unhealthy after 5 failed exchanges:
+
+[source,java]
+----
+RoutesHealthCheckRepository repo = new RoutesHealthCheckRepository();
+repo.addEvaluator(new RoutePerformanceCounterEvaluators.ExchangesFailed(5));
+
+...
+context.getHealthCheckRegistry().addRepository(repo);
+...
+----
+
+If we now run the integration and we invoke the endpoint `http://localhost:8081` more than five times, the JMX endpoint should report that the context is not more healthy:
+
+[options="header"]
+|===
+|Name|Value
+|HealthChecksIDs|[route:inbound]
+|IsHealthy| false
+|===
+
+In addition to the attributes mentioned above, the JMX endpoint has some operations you can invoke:
+
+- *details*, a read only operation which returns information about registered checks as _TabularData_, each element of the table should looks like:
++
+[options="header"]
+|===
+|Name|Value
+|enabled|true
+|failureThreshold|0
+|group|
+|id|route:inbound
+|interval|
+|state|
+|===
+
+- *invoke*, which invokes a check by id and returns its state.
+
+=== Spring Boot Endpoint
+
+When running Camel in a Spring Boot application, you can control Camel's Health Checks and how they are contributed to Spring Boot's `/health` endpoint through configuration.
+
+The first step is to enable Camel's Health Checks indicator:
+
+[source,properties]
+----
+camel.health.check.indicator.enabled = true
+----
+
+Then if you want to leverage Camel's `RoutesHealthCheckRepository` as done before, you need to enable it via properties, no code required:
+
+[source,properties]
+----
+camel.health.check.routes.enabled = true
+----
+
+Now that the `RoutesHealthCheckRepository` is configured, we can set thresholds:
+
+[source,properties]
+----
+# global thresholds
+camel.health.check.routes.thresholds.exchanges-failed = 10
+
+# Thresholds can be set per routes with default values taken from global thresholds
+camel.health.check.routes.threshold[bar].exchanges-failed = 20
+
+# Threshold inheritance can be disabled using the inherit option
+camel.health.check.routes.threshold[slow].inherit = false
+
+# Report unhealthy context after the last processing time is greater than one second for more than
+# five consecutive time
+camel.health.check.routes.threshold[slow].last-processing-time.threshold = 1s
+camel.health.check.routes.threshold[slow].last-processing-time.failures = 5
+----
+
+If we invoke the Spring Boot `/health` endpoint, we should have a response like:
+
+[source,json]
+----
+{
+    "camel": {
+        "contextStatus": "Started",
+        "name": "context-1",
+        "status": "UP",
+        "version": "2.20.0-SNAPSHOT"
+    },
+    "camel-health-checks": {
+        "route:bar": "UP",
+        "route:foo": "UP",
+        "route:slow": "UP"
+    },
+    "diskSpace": {
+        "free": 112750985216,
+        "status": "UP",
+        "threshold": 10485760,
+        "total": 192459673600
+    },
+    "status": "UP"
+}
+----
+
+Detailed information about the checks can be retrieved from additional endpoints that Camel automatically sets up:
+
+- `/camel/health/check` provides an overview of camel specific checks
++
+[source,json]
+----
+[
+    {
+        "check": {
+            "group": "camel",
+            "id": "route:foo"
+        },
+        "status": "UP"
+    },
+    {
+        "check": {
+            "group": "camel",
+            "id": "route:bar"
+        },
+        "status": "UP"
+    },
+    {
+        "check": {
+            "group": "camel",
+            "id": "route:slow"
+        },
+        "status": "UP"
+    }
+]
+----
+
+- `/camel/health/check/{check-id}` provides details about a specific check identified by its id:
++
+[source,json]
+----
+{
+    "check": {
+        "configuration": {
+            "enabled": true
+        },
+        "group": "camel",
+        "id": "route:bar",
+        "metaData": {
+            "check.group": "camel",
+            "check.id": "route:bar",
+            "failure.count": 2,
+            "invocation.attempt.time": "2017-10-05T12:44:19.767+02:00[Europe/Rome]",
+            "invocation.count": 3,
+            "invocation.time": "2017-10-05T12:44:19.767+02:00[Europe/Rome]"
+        }
+    },
+    "details": {
+        "exchanges.failed": 120,
+        "exchanges.failed.threshold": 20,
+        "failure.count": 2,
+        "invocation.count": 3,
+        "invocation.time": "2017-10-05T12:44:19.767+02:00[Europe/Rome]",
+        "route.context.name": "camel-1",
+        "route.id": "bar",
+        "route.status": "Started"
+    },
+    "status": "DOWN"
+}
+----
+
+Health Checks can be pulled out from Spring Boot's health endpoint using either the literal id or a regexp.
+Exclusion list can be applied to both the ID or the Group as shown below:
+
+[source,properties]
+----
+camel.health.check.indicator.exclusion.ids[0] = my-.*-2
+camel.health.check.indicator.exclusion.groups[0] = global
+----
+
+== Writing a custom checks
+
+Of course you may need to provide your own checks and to do so you can leverage `AbstractHealthCheck`:
+
+[source,java]
+----
+public final class MyHealthCheck extends AbstractHealthCheck {
+    public ContextHealthCheck() {
+        super("camel", "my-check");
+
+        // make this check enabled by default.
+        getConfiguration().setEnabled(true);
+    }
+
+    @Override
+    protected void doCall(HealthCheckResultBuilder builder, Map<String, Object> options) {
+        // Add some details to the check result
+        builder.detail("my.detail.1", "some detail 1");
+        builder.detail("my.detail.2", "some detail 2");
+
+        // Report the check as up/down according to a condition
+        if (isNotHealthy) {
+            builder.down();
+        } else {
+            builder.up();
+        }
+    }
+}
+----
+
+== Health Check Service
+
+By default checks are triggered when the JMX or Spring Boot endpoint are invoked but you can enable a background service to automatically invoke the checks according to a specific interval so each endpoint invocation results in a cached result being returned (if checks are not forced to be executed)
+
+[source,properties]
+----
+camel.health.check.service.enabled = true
+camel.health.check.service.check-interval = 10s
+----
+
+[IMPORTANT]
+====
+Health Checks are an experimental feature which will be improved in the next Camel releases.
+====

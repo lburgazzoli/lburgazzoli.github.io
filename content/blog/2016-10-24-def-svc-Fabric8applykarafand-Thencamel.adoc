@@ -1,0 +1,235 @@
+---
+title: 'def µsvc = Fabric8.apply(karaf).andThen(camel)'
+date: 2016-10-24
+draft: false
+tags:
+- microservices
+- fabric8
+- karaf
+- openshift
+- kubernetes
+---
+
+
+https://fabric8.io[Fabric8] is an amazing microservice platform which not only provide all the building blocks needed to effectively impement microservices but also a number of high quality open-source libraries and tools that every developer could leverage to ease the integration with Kubernetes/OpenShift.
+
+Some of the bits fabric8 provides are:
+
+* https://github.com/fabric8io/kubernetes-client[OpenShift/Kubernetes Client]
+* https://github.com/fabric8io/spring-cloud-kubernetes[Spring Cloud Kubernetes]
+* https://github.com/fabric8io/fabric8/tree/master/components/fabric8-karaf[Fabric8 Karaf]
+* https://maven.fabric8.io[Fabric8 Maven Plugin]
+
+As we are brave, we won't talk about doing Microservices with Spring Boot but we'll go with http://karaf.apache.org/[Apache Karaf] and http://camel.apache.org/[Apache Camel].
+
+NOTE: I'll show the relevant parts here, full code is available on https://github.com/lburgazzoli/camel-karaf-microservice[github]
+
+== Set-up
+
+In a traditional environment you often deploy bundles on a running Karaf container but that's not the way we want to deploy in a microservice environment. Instead we want standalone applications so the first step is to create custom Karaf distribution pre-configured with the needed bundles.
+
+This can be done via karaf-maven-plugin:
+
+[source,xml]
+----
+<plugin>
+    <groupId>org.apache.karaf.tooling</groupId>
+    <artifactId>karaf-maven-plugin</artifactId>
+    <version>${karaf.version}</version>
+    <extensions>true</extensions>
+    <executions> <!--1-->
+      <execution>
+        <id>karaf-assembly</id>
+        <goals>
+          <goal>assembly</goal>
+        </goals>
+        <phase>install</phase>
+      </execution>
+      <execution>
+        <id>karaf-archive</id>
+        <goals>
+          <goal>archive</goal>
+        </goals>
+        <phase>install</phase>
+      </execution>
+    </executions>
+    <configuration>
+      <javase>1.8</javase>
+      <archiveTarGz>true</archiveTarGz>
+      <startupFeatures> <!--2-->
+        <!-- karaf -->
+        <feature>framework</feature>
+        <feature>scr</feature>
+        <feature>aries-blueprint</feature>
+
+        <!-- fabric8 -->
+        <feature>fabric8-karaf-blueprint</feature>
+        <feature>fabric8-karaf-cm</feature>
+
+        <!-- camel -->
+        <feature>camel-core</feature>
+        <feature>camel-blueprint</feature>
+      </startupFeatures>
+      <startupBundles> <!--3-->
+        <bundle>mvn:${project.groupId}/${project.artifactId}/${project.version};start-level=80</bundle>
+      </startupBundles>
+    </configuration>
+    ...
+</plugin>
+----
+<1> Map karaf-maven-plugin's karaf-assembly and archive phases to install phase, this is mandatory if you want your project to be included in the distribution.
+<2> List of features to start at boot
+<3> List of bundles to start at boot
+
+We are now ready to start writing our microservice so let's have a look on how to leverage Fabric8 Karaf:
+
+* With *fabric8-karaf-blueprint* installed you can access ConfigMap and Secrets using property placeholders so if you have a ConfigMap like the one below
++
+[source,yaml]
+----
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: camel-karaf-global
+data:
+  data.center.name: "dc1"
+----
++
+you can use the notation `k8s:map:mapName/dataKey` to retrieve the vaue of the field data.center.name, i.e:
++
+[source,xml]
+----
+<bean id="myBean" class="com.github.lburgazzoli.microservice.MyBean">
+  <argument value="$[k8s:map:camel-karaf-global/data.center.name]"/>
+  ...
+</bean>
+----
++
+* With *fabric8-karaf-cm* installed you can feed ConfigAdmin with values from ConfigMaps so if you have a ConfigMap as below
++
+[source,yaml]
+----
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: camel-karaf-microservice
+  labels:
+    karaf.pid: camel.karaf.microservice
+data:
+  bean.body: "Hello from OpenShift"
+----
++
+then the service with pid camel.karaf.microservice will be able to retrieve the value of the property bean.body as if the value would have been provided in `etc/camel.karaf.microservice.cfg`:
++
+[source,xml]
+----
+<bean id="myBean" class="com.github.lburgazzoli.microservice.MyBean">
+  ..
+  <argument value="${bean.body}"/>
+</bean>
+----
+* With fabric8-karaf-cm installed you can "hot reconfigure" your application by updating a ConfigMap 
+
+So let's put all togheter to implement a simple Camel route using OSGI Blueprint: 
+
+[source,xml]
+----
+<?xml version="1.0"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.3.0"
+  xmlns:ext="http://aries.apache.org/blueprint/xmlns/blueprint-ext/v1.3.0"
+  xsi:schemaLocation="
+    http://www.osgi.org/xmlns/blueprint/v1.0.0
+    https://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd
+    http://camel.apache.org/schema/blueprint
+    http://camel.apache.org/schema/blueprint/camel-blueprint.xsd
+    http://aries.apache.org/blueprint/xmlns/blueprint-ext/v1.3.0
+    http://aries.apache.org/schemas/blueprint-ext/blueprint-ext-1.3.xsd">
+
+  <cm:property-placeholder 
+      persistent-id="camel.karaf.microservice" <!--1-->
+      update-strategy="reload"> <!--2-->
+    <cm:default-properties>
+    </cm:default-properties>
+  </cm:property-placeholder>
+
+  <ext:property-placeholder 
+    evaluator="fabric8" <!--3-->
+    placeholder-prefix="$[" placeholder-suffix="]"/>
+
+  <bean id="myBean" class="com.github.lburgazzoli.microservice.MyBean">
+    <argument value="$[k8s:map:camel-karaf-global/data.center.name]"/>
+    <argument value="${bean.body}"/>
+  </bean>
+
+  <camelContext id="camel-context" xmlns="http://camel.apache.org/schema/blueprint">
+
+    <route id="timer">
+      <from uri="timer:foo?period=10s"/>
+      <setHeader headerName="DataCenter">
+          <method ref="myBean" method="dataCenter"/>
+      </setHeader>
+      <setBody>
+          <method ref="myBean" method="body"/>
+      </setBody>
+      <log message="Body is: ${body}, DataCenter is: ${header.DataCenter}"/>
+    </route>
+
+  </camelContext>
+
+</blueprint>
+----
+<1> Set the persistent-id for the Blueprint.
+<2> Configure reload strategy of the context so if a property changes in ConfigAdmin (i.e. by changing the related ConfigMap) the context will be reloaded.
+<3> Configure fabric8 PropertyEvaluator so that you can use Fabric8's functions to resolve placeholders.
+
+NOTE: Check the http://fabric8.io/guide/karaf.html[Fabric8 Karaf documentation] for details and options.
+
+=== Running the example
+
+You need a running OpenShift or Kubenretes cluster to run the example, if you do not have one I suggest to use https://github.com/kubernetes/minikube[Minikube] or https://github.com/jimmidyson/minishift[Minishift] to set up an environment in a few simple steps even http://www.davsclaus.com/2016/10/installing-kubernetes-from-copenhagen.html[while having a drink at the Airport]
+
+[IMPORTANT]
+====
+If you deploy on OpenShift you need to grant view role to the service account `oc policy add-role-to-user view system:serviceaccount:$(oc project -q):default -n $(oc project -q)`
+====
+
+To run the application run the following command:
+
+[source]
+----
+./mvnw clean fabric8:run
+----
+
+This command will build the application, generate OpenShift/Kubernetes resources then deploy and run the application to the cluster and finally tail the pod log so you can see what the application is doing. 
+
+After the initialization the log should looks like:
+
+....
+[INFO] F8: 2016-10-24 15:48:14,717 | INFO  | FelixStartLevel  | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | Apache Camel 2.18.0 (CamelContext: camel-context) started in 0.284 seconds
+[INFO] F8: 2016-10-24 15:48:15,728 | INFO  | #0 - timer://foo | timer                            | 36 - org.apache.camel.camel-core - 2.18.0 | Body is: Hello from OpenShift, DataCenter is: dc1
+[INFO] F8: 2016-10-24 15:48:25,736 | INFO  | #0 - timer://foo | timer                            | 36 - org.apache.camel.camel-core - 2.18.0 | Body is: Hello from OpenShift, DataCenter is: dc1
+[INFO] F8: 2016-10-24 15:48:35,718 | INFO  | #0 - timer://foo | timer                            | 36 - org.apache.camel.camel-core - 2.18.0 | Body is: Hello from OpenShift, DataCenter is: dc1
+....
+
+Now if we update the ConfigMap named `camel-karaf-microservice` with a message like `Hello from Minishift` we should see the context to be restarted and the new message being displayed like below:
+
+....
+[INFO] F8: 2016-10-24 15:50:01,214 | INFO  | Thread-9         | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | Apache Camel 2.18.0 (CamelContext: camel-context) is shutting down
+[INFO] F8: 2016-10-24 15:50:01,216 | INFO  | Thread-9         | DefaultShutdownStrategy          | 36 - org.apache.camel.camel-core - 2.18.0 | Starting to graceful shutdown 1 routes (timeout 300 seconds)
+[INFO] F8: 2016-10-24 15:50:01,220 | INFO  | 1 - ShutdownTask | DefaultShutdownStrategy          | 36 - org.apache.camel.camel-core - 2.18.0 | Route: timer shutdown complete, was consuming from: timer://foo?period=10s
+[INFO] F8: 2016-10-24 15:50:01,221 | INFO  | Thread-9         | DefaultShutdownStrategy          | 36 - org.apache.camel.camel-core - 2.18.0 | Graceful shutdown of 1 routes completed in 0 seconds
+[INFO] F8: 2016-10-24 15:50:01,249 | INFO  | Thread-9         | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | Apache Camel 2.18.0 (CamelContext: camel-context) uptime 1 minute
+[INFO] F8: 2016-10-24 15:50:01,250 | INFO  | Thread-9         | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | Apache Camel 2.18.0 (CamelContext: camel-context) is shutdown in 0.035 seconds
+[INFO] F8: 2016-10-24 15:50:01,330 | INFO  | rint Extender: 1 | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | Apache Camel 2.18.0 (CamelContext: camel-context) is starting
+[INFO] F8: 2016-10-24 15:50:01,330 | INFO  | rint Extender: 1 | ManagedManagementStrategy        | 36 - org.apache.camel.camel-core - 2.18.0 | JMX is enabled
+[INFO] F8: 2016-10-24 15:50:01,364 | INFO  | rint Extender: 1 | DefaultRuntimeEndpointRegistry   | 36 - org.apache.camel.camel-core - 2.18.0 | Runtime endpoint registry is in extended mode gathering usage statistics of all incoming and outgoing endpoints (cache limit: 1000)
+[INFO] F8: 2016-10-24 15:50:01,396 | INFO  | rint Extender: 1 | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | StreamCaching is not in use. If using streams then its recommended to enable stream caching. See more details at http://camel.apache.org/stream-caching.html
+[INFO] F8: 2016-10-24 15:50:01,417 | INFO  | rint Extender: 1 | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | Route: timer started and consuming from: timer://foo?period=10s
+[INFO] F8: 2016-10-24 15:50:01,418 | INFO  | rint Extender: 1 | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | Total 1 routes, of which 1 are started.
+[INFO] F8: 2016-10-24 15:50:01,418 | INFO  | rint Extender: 1 | BlueprintCamelContext            | 36 - org.apache.camel.camel-core - 2.18.0 | Apache Camel 2.18.0 (CamelContext: camel-context) started in 0.087 seconds
+[INFO] F8: 2016-10-24 15:50:02,419 | INFO  | #2 - timer://foo | timer                            | 36 - org.apache.camel.camel-core - 2.18.0 | Body is: Hello from Minishift, DataCenter is: dc1
+[INFO] F8: 2016-10-24 15:50:12,418 | INFO  | #2 - timer://foo | timer                            | 36 - org.apache.camel.camel-core - 2.18.0 | Body is: Hello from Minishift, DataCenter is: dc1
+[INFO] F8: 2016-10-24 15:50:22,419 | INFO  | #2 - timer://foo | timer                            | 36 - org.apache.camel.camel-core - 2.18.0 | Body is: Hello from Minishift, DataCenter is: dc1
+....

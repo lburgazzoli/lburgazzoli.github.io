@@ -1,0 +1,244 @@
+---
+title: 'Adventures in GraalVM: polyglot Camel (k) native routes with Quarkus'
+date: 2019-03-25
+draft: false
+tags:
+- graalvm
+- scripting
+- camel
+---
+
+The last blog i wrotefootnote:[https://lburgazzoli.github.io/2018/09/04/Adventures-in-GraalVM-polyglot-Camel-routes-with-native-image.html] was about running integration code written in JavaScript from a Camel application compiled as native executable using SubstrateVM (part of the GraalVM project).
+
+== Has something happen since then ?
+
+I would say yes:
+
+- https://github.com/apache/camel-k[Camel K]
+- https://quarkus.io[Quarkus]
+- Camel 3 development has finally started
+
+As I'm involved in all the projects above, let see how they can play togheter to deliver a truly amazing cloud native experience.
+
+CAUTION: this post is based on code not yet merged in the upstream repository and subject to change
+
+== Bring some Quarkus to Camel K
+
+Quarkus provides some initial supportfootnote:[https://quarkus.io/extensions/#integration] for Camel through dedicated extensions that:
+
+- perform most of the steps needed to initialize a CamelContext instance at build time so as example, components, languages and data-formats are discovered and loaded into the registry when the build runs so Camel does not need to spend any time resolving and instantiating the related classes at run time
+- provided SubstrateVM "hacks" to let Camel based appication to compile against Graal/SubstrateVM.
+
+Quarkus supports CDI which let us use CDI annotations to obtain a reference to a bean holding optimized Camel bits and to adapt quarked Camel lifecycle events to Camel K lifecycle: 
+
+[source,java]
+----
+@ApplicationScoped
+public class CamelKApplication {
+    @Inject
+    CamelRuntime runtime;
+
+	List<Listener> listeners = new ArrayList<>();
+
+    public void initializing(@Observes InitializingEvent event) {
+        listeners.forEach(l -> l.accept(Phase.ConfigureContext, this));
+        listeners.forEach(l -> l.accept(Phase.ConfigureRoutes, this));
+    }
+
+    public void starting(@Observes StartingEvent event) {    	
+        listeners.forEach(l -> l.accept(Phase.Starting, this));
+    }
+
+    public void started(@Observes StartedEvent event) {
+    	listeners.forEach(l -> l.accept(Phase.Started, this));
+    }
+
+    public void stopping(@Observes StoppingEvent event) {
+    	listeners.forEach(l -> l.accept(Phase.Stopping, this));
+    }
+
+    public void stopped(@Observes StoppedEvent event) {
+        listeners.forEach(l -> l.accept(Phase.Stopped, this));
+    }
+}
+----
+
+As we want to be able to run our code as native binary we also need to create a Camel K extension for Quarkusfootnote:[https://quarkus.io/guides/extension-authors-guide] that can instruct it about what it is needed for Camel K to properly build and run with SubstrateVM.
+
+The minimum requirement is to make the services Camel K relies on available when running in native mode:
+
+[source,java]
+----
+public class CamelQuarkusProcessor {
+    @BuildStep
+    void processServices(
+            BuildProducer<ServiceProviderBuildItem> serviceProvider,
+            CombinedIndexBuildItem combinedIndexBuildItem) {
+
+        IndexView view = combinedIndexBuildItem.getIndex(); // <1>
+        String type = "org.apache.camel.k.Runtime$Listener";
+        
+        view.getAllKnownImplementors(DotName.createSimple(type)).forEach(i-> {
+            serviceProvider.produce(
+                new ServiceProviderBuildItem(
+                    type, 
+                    i.name().toString())
+           );
+        }); // <2>
+    }
+}
+----
+<1> Leverage https://github.com/wildfly/jandex[Jandex] for efficient metadata  indexing and lookup
+<2> Instruct Quarkus about concrete service provider needed ar runtime
+
+We also want to make our application polyglot so we can add support for JavaScript through Graal JSfootnote:[https://www.graalvm.org/docs/reference-manual/languages/jvm/] and to do that in a previous release of GrallVMfootnote:[https://lburgazzoli.github.io/2018/09/04/Adventures-in-GraalVM-polyglot-Camel-routes-with-native-image.html] I had to implment some proxy classes to support reflective access from JavaScript back to Java but as of GraalVM RC13footnote:[https://github.com/graalvm/graaljs/blob/master/CHANGELOG.md#version-100-rc13], this is not more needed and instead we only need to list the impacted classed among those that need to be accessed reflectively.
+
+In Quarkus this can be done through a dedicate BuildProducer:
+
+[source,java]
+----
+public class CamelQuarkusProcessor {
+    @BuildStep
+    void processReflectiveClasses(
+            BuildProducer<ReflectiveClassBuildItem> reflectiveClass,
+            CombinedIndexBuildItem combinedIndexBuildItem) {
+
+        reflectiveClass.produce(
+            new ReflectiveClassBuildItem(
+            	true, 
+                false,
+                "org.apache.camel.builder.ExpressionClause",
+                "org.apache.camel.model.FromDefinition",
+                "org.apache.camel.model.ProcessDefinition",
+                "org.apache.camel.model.ProcessorDefinition",
+                "org.apache.camel.model.RouteDefinition",
+                "org.apache.camel.model.ToDefinition",
+                "org.apache.camel.model.language.ExpressionDefinition",
+                "org.apache.camel.spi.ExchangeFormatter")
+        );
+}
+----
+
+=== Run it 
+
+The first test we can do is ot run our application in JVM mode so let's write a simple JavaScript route:
+
+[source,js]
+----
+from('timer:js?period=1s')
+    .setBody()
+        .simple('Hello Camel K from ${routeId}')
+    .to('log:info?multiline=true')
+----
+
+An run it:
+
+[source]
+----
+07:10:04,587 INFO  Adding listener: class org.apache.camel.k.listener.ContextConfigurer
+07:10:04,598 INFO  Adding listener: class org.apache.camel.k.listener.ContextLifecycleConfigurer
+07:10:04,599 INFO  Adding listener: class org.apache.camel.k.listener.RoutesConfigurer
+07:10:04,600 INFO  Adding listener: class org.apache.camel.k.listener.RoutesDumper
+07:10:04,651 INFO  Type converters loaded (core: 183, classpath: 14)
+07:10:04,662 INFO  Creating interface org.apache.camel.spi.Language for name simple
+07:10:04,662 INFO  Binding language simple with prefix camel.language.simple
+07:10:04,683 INFO  Loading routes from: file:simple.js with loader: class org.apache.camel.k.loader.js.graal.GraalJavaScriptLoader
+07:10:05,257 INFO  No xml routes configured
+07:10:05,291 INFO  Creating interface org.apache.camel.Component for name timer
+07:10:05,291 INFO  Binding component timer with prefix camel.component.timer
+07:10:05,313 INFO  Creating interface org.apache.camel.Component for name log
+07:10:05,314 INFO  Binding component log with prefix camel.component.log
+07:10:05,322 INFO  Apache Camel 3.0.0-M2 (CamelContext: quarkus-camel-k) is starting
+07:10:05,323 INFO  Apache Camel 3.0.0-M2 (CamelContext: quarkus-camel-k) is starting
+07:10:05,324 INFO  JMX is disabled
+07:10:05,329 INFO  StreamCaching is not in use. If using streams then its recommended to enable stream caching. See more details at http://camel.apache.org/stream-caching.html
+07:10:05,337 INFO  Route: js started and consuming from: timer://js?period=1s
+07:10:05,338 INFO  Total 1 routes, of which 1 are started
+07:10:05,339 INFO  Apache Camel 3.0.0-M2 (CamelContext: quarkus-camel-k) started in 0.015 seconds <1>
+07:10:05,345 INFO  Quarkus 999-SNAPSHOT started in 1.102s. <2>
+07:10:05,347 INFO  Installed features: [camel-core, cdi]
+07:10:06,386 INFO  Exchange[
+, ExchangePattern: InOnly
+, BodyType: String
+, Body: Hello Camel K from js
+]
+07:10:07,340 INFO  Exchange[
+, ExchangePattern: InOnly
+, BodyType: String
+, Body: Hello Camel K from js
+]
+----
+<1> the camel context starts in 15ms
+<2> the whole process takes around 1s to start
+
+Let's now run the same application compiled as native binary through SubstrateVM
+
+[source]
+----
+07:24:33,704 INFO  Adding listener: class org.apache.camel.k.listener.ContextConfigurer
+07:24:33,705 INFO  Adding listener: class org.apache.camel.k.listener.ContextLifecycleConfigurer
+07:24:33,705 INFO  Adding listener: class org.apache.camel.k.listener.RoutesConfigurer
+07:24:33,705 INFO  Adding listener: class org.apache.camel.k.listener.RoutesDumper
+07:24:33,707 INFO  Type converters loaded (core: 183, classpath: 0)
+07:24:33,708 INFO  Creating interface org.apache.camel.spi.Language for name simple
+07:24:33,708 INFO  Binding language simple with prefix camel.language.simple
+07:24:33,709 INFO  Loading routes from: file:simple.js with loader: class org.apache.camel.k.loader.js.graal.GraalJavaScriptLoader
+07:24:33,715 INFO  No xml routes configured
+07:24:33,715 INFO  Creating interface org.apache.camel.Component for name timer
+07:24:33,715 INFO  Binding component timer with prefix camel.component.timer
+07:24:33,717 INFO  Creating interface org.apache.camel.Component for name log
+07:24:33,717 INFO  Binding component log with prefix camel.component.log
+07:24:33,718 INFO  Apache Camel  (CamelContext: camel-1) is starting
+07:24:33,718 INFO  Apache Camel  (CamelContext: camel-1) is starting
+07:24:33,718 INFO  JMX is disabled
+07:24:33,718 INFO  StreamCaching is not in use. If using streams then its recommended to enable stream caching. See more details at http://camel.apache.org/stream-caching.html
+07:24:33,719 INFO  Route: js started and consuming from: timer://js?period=1s
+07:24:33,719 INFO  Total 1 routes, of which 1 are started
+07:24:33,719 INFO  Apache Camel  (CamelContext: camel-1) started in 0.001 seconds <1>
+07:24:33,719 INFO  Quarkus 999-SNAPSHOT started in 0.019s. <2>
+07:24:33,719 INFO  Installed features: [camel-core, cdi]
+07:24:34,720 INFO  Exchange[
+, ExchangePattern: InOnly
+, BodyType: String
+, Body: Hello Camel K from js
+]
+07:24:35,719 INFO  Exchange[
+, ExchangePattern: InOnly
+, BodyType: String
+, Body: Hello Camel K from js
+]
+----
+<1> the camel context starts in 1ms
+<2> the  whole process takes around 20ms to start
+
+Finaly we can run it on kubernetes with Camel K
+
+image::/images/camel-k-M2-native-js.gif[]
+
+=== Final Notes
+
+The Camel extension provided by Quarkus are also able to optimize routes at build time but in Camel K we do not use such feature as we want to re-use pre built Integration Contexts (including native ones) as much as possible
+
+As stated at the beginning this blog is based on code not yet merged in the related upstream projects but the result are already quite promising so stay tuned for more updates to come.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

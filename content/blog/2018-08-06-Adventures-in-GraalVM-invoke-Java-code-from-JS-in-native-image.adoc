@@ -1,0 +1,72 @@
+---
+title: 'Adventures in GraalVM: invoke Java code from JS in native-image'
+date: 2018-08-06
+draft: false
+tags:
+- camel
+- graalvm
+- scripting
+---
+
+Thre's a lot of interest about GraalVM's native-image recently so I give it a try but instead of "just" trying to compile some java code to a native binary I went to the edge trying to make the native binary extensible via JavaScript.
+
+In a Java application make some java objects available to the JS runtime is trivial and you only need to do something like:
+
+[source,java]
+----
+try(Context context = Context.create()) {
+    MyBean bean = new MyBean();
+
+    context.getBindings("js").putMember("bean", bean);
+    context.eval("js", "bean.saySomething()")
+}
+----
+   
+But when a native binary is generated this does not work anymore as GraalVM as of RC5 does not yet support reflective access to Java code from JS (and other languages) so we need to use some proxy object GraalVM SDK provides.
+
+The javadoc for the proxy packages is:
+
+    http://www.graalvm.org/sdk/javadoc/org/graalvm/polyglot/proxy/package-summary.html
+
+So let's write an example:
+[source,java]
+----
+try(Context ctx = Context.create()) {
+    final Map<String, Object> proxy = new HashMap<>(); // <1>
+    proxy.put("sayHello", new ProxyExecutable() { // <2>
+        @Override
+        public Object execute(Value... arguments) {
+            if (arguments.length != 1) {
+                throw new IllegalArgumentException();
+            }
+
+            System.out.printf("Hello, %s\n", arguments[0].asString());
+            return null;
+        }
+    });
+
+    ProxyObject bean = ProxyObject.fromMap(proxy); // <3>
+    ctx.getBindings("js").putMember("bean", bean); // <4>
+
+    ctx.eval("js", "bean.sayHello('World!')"); // <5>
+}
+----
+<1> Use a map to describe our bean
+<2> Wrap the function we want to invoke using a ```ProxyExecutable``` which mimics a guest language objects that are executable
+<3> Wrap our map using ```ProxyObject``` builtin ```fromMap```
+<4> Bind our proxy to a variable named ```bean``` the scripting engine can the access
+<5> Finally Invoke our ```ProxyExecutable``` from JS
+
+[CAUTION]
+====
+I'm unable to have a stable base for going further because of the following issues:
+
+- https://github.com/oracle/graal/issues/594
+- https://github.com/oracle/graal/issues/592
+====
+
+
+
+
+
+

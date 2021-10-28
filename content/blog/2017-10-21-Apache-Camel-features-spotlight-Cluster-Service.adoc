@@ -1,0 +1,155 @@
+---
+title: 'Apache Camel features spotlight: Cluster Service'
+date: 2017-10-21
+draft: false
+tags:
+- camel
+- clustering
+---
+
+In Apache Camel 2.20.0 we have introduced an initial support for native clustering named *Camel Cluster Service* for which my colleague https://www.nicolaferraro.me[*Nicola Ferraro*] has wrote a really nice post about how to use this feature to create singleton services on Kubernetes footnote:[ https://www.nicolaferraro.me/2017/10/17/creating-clustered-singleton-services-on-kubernetes/[Creating Clustered Singleton Services on Kubernetes]], here we are going to talk a little bit more about how the service works.
+
+== Concepts
+
+* *Cluster Service* is a regular camel service that runs in background and is responsible to manage cluster objects. Apache Camel 2.20 comes with a single object type named *Cluster View* but more objects will come in the next releases.
+
+* *Cluster View* represent a view of the cluster with its own set of isolated resource (events happing on a view should not be propagated outside the view) and as today the following events are supported:
+
+** Leadership events
+** Topology events (members joining or leaving the view)
+
+== Service set-up
+
+As the Cluster Service is implemented as standard camel service you only need to bind the service to your camel context.
+
+NOTE: Cluster Services instances found on the Camel Registry are automatically added to the context
+
+Out of the box Camel provides the following implementations:
+
+[cols="1a,1,3", options="header"]
+|====
+|Type         |Module           | Class
+|*atomix*     |camel-atomix     | org.apache.camel.component.atomix.ha.AtomixClusterService
+|*consul*     |camel-consul     | org.apache.camel.component.consul.ha.ConsulClusterService
+|*file*       |camel-core       | org.apache.camel.component.file.ha.FileLockClusterService
+|*jgroups*    |camel-jgroups    | org.apache.camel.component.file.ha.FileLockClusterService
+|*kubernetes* |camel-kubernetes | org.apache.camel.component.jgroups.ha.JGroupsLockClusterService
+|*zookeeper*  |camel-zookeeper  | org.apache.camel.component.zookeeper.ha.ZooKeeperClusterService
+|====
+
+Each cluster service has a set of configuration that are implementation dependent and a few common configurations:
+
+[cols="1a,1,3", options="header"]
+|====
+|Option       |Mandatory                |Description
+|*id*         |implementation dependent |The identifier of the context in the cluster
+|*order*      |false                    |The order of the service
+|*attributes* |false                    |A key value map of attributes associated to the service
+|====
+
+=== Spring/Blueprint XML
+
+As _Cluster Services_ added to the registry are automatically discovered, you only need to add a bean definition like:
+
+[source,xml]
+----
+<bean id="zx" class="org.apache.camel.component.zookeeper.ha.ZooKeeperClusterService">
+  <property name="id" value="node-1"/>
+  <property name="basePath" value="/camel/ha"/>
+  <property name="nodes" value="zk-node:2181"/>
+</bean>
+----
+
+=== Spring Boot
+
+Each camel component that provides a _Cluster Service_ implementation has a related spring-boot starter that make it possible to configure the service using properties, as example:
+
+[source,properties]
+----
+camel.component.zookeeper.cluster.service.enabled = true
+camel.component.zookeeper.cluster.service.id = ${random.uuid}
+camel.component.zookeeper.cluster.service.base-path = /camel/ha
+camel.component.zookeeper.cluster.service.nodes = zk-node:2181
+----
+
+NOTE: Cluster Service instances are not automatically enabled on Spring Boot.
+
+== Service usage
+
+Once the _Cluster Service_ is set-up you can leverage it using one of the following options:
+
+* *ClusteredRoutePolicy*
++
+A _ClusteredRoutePolicy_ is an implementation of the _RoutePolicy API_ that take control of the associated route and start it when the view acquire the leadership
++
+[source,java]
+----
+RoutePolicy policy = ClusteredRoutePolicy.forNamespace("my-ns");
+
+// bind the policy to one or more routes
+from("timer:clustered?delay=1s&period=1s")
+    .routePolicy(policy)
+    .log("Route ${routeId} is running ...");
+----
++
+NOTE: A dedicated _ClusteredRoutePolicyFactory_ is provided to apply the policy to every route of the context.
+
+* *Master component*
++
+A re-implementation of the JBoss Fuse master component that leverages the new _Cluster Service APIs_
++
+[source,java]
+---- 
+from("master:my-ns:timer:clustered?period=5s")
+    .routeId("clustered")
+    .log("Clustered route (timer) ...");
+----
+* *ClusteredRouteController*
++
+This is an implementation of the experimental _RouteController SPI_ that let the context to start up then it starts the routes when the associated views acquire the leadership. On Spring boot, the controller is easily configurable through properties:
++
+[source,properties]
+----
+# enable the route controller
+camel.clustered.controller.enabled = true
+
+# define the default namespace for routes
+camel.clustered.controller.namespace = my-ns
+
+# exlude the route with id 'heartbeat' from the clustered ones
+camel.clustered.controller.routes[heartbeat].clustered = false
+----
++
+[TIP]
+====
+By leveraging camel spring-boot starters, you can enable clustering without code changes.
+====
+
+== Advanced usage
+
+Although in most of the cases you just want to use a single clustering technology, you can add multiple _Cluster Services_ to a camel context and in that case route policies, master component and so on would use the first implementation found unless you set a service selector:
+
+[source,java]
+----
+RoutePolicy policy1 = ClusteredRoutePolicy.forNamespace(
+  ClusterServiceSelectors.attribute("service.type", "consul")
+  "my-ns"
+);
+
+RoutePolicy policy1 = ClusteredRoutePolicy.forNamespace(
+  ClusterServiceSelectors.attribute("service.type", "zk")
+  "my-ns"
+);
+
+from("timer:consul")
+    .routePolicy(policy1)
+    .log("Route ${routeId} is running ...");
+from("timer:zk")
+    .routePolicy(policy2)
+    .log("Route ${routeId} is running ...");
+----
+
+'''
+
+WARNING: _ClusterService_ is an experimental feature which will be improved in the next Camel releases.
+

@@ -1,0 +1,197 @@
+---
+title: ' Polyglot Camel Routes'
+date: 2018-07-30
+draft: false
+tags:
+- camel
+---
+
+As I do not like XML so much, I spent some time on a very small project to load routes written in JavaScript or Groovy.
+
+== Background
+
+When camel runs on top of Spring Boot, it automatically loads routes bounded to spring's application context as well as xml routes placed in a configurable location so as example, if you add a property like:
+
+[source,ini]
+----
+camel.springboot.xml-routes = classpath:routes/*.xml
+----
+
+Camel will scan the classpath for resources matching _routes/*.xml_ so can we use a similar approach to load routes written in different languages? 
+
+Of course yes.
+
+== JavaScript
+
+Java comes with the ScriptEngine so we can use it to invoke a js script that we can use to set up routes. The first attemp was something like:
+
+[source,java]
+----
+new RouteBuilder() {
+    public void configure() throws Exception {
+        ScriptEngineManager manager = ScriptEngineManager(); 
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+        
+        // bind the builder to the script engine
+        engine.put("builder", this);
+        
+        // evaluate the script
+        engine.eval(...);
+}
+----
+
+This let us to write a js script such as:
+
+[source,js]
+----
+
+builder.from('timer:js?period=1s')
+    .to('log:js?showAll=false&multiline=false')
+----
+
+Yeah it does work but I do not like having to reference a _builder_ directly so I came across this https://stackoverflow.com/questions/31236550/defining-a-default-global-java-object-to-nashorn-script-engine[SO question] and I re-wrote my code as:
+
+[source,java]
+----
+new RouteBuilder() {
+    public void configure() throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // get JavaScript "global" object
+        Object global = engine.eval("this");
+        // get JS "Object" constructor object
+        Object jsObject = engine.eval("Object");
+
+        Invocable invocable = (Invocable) engine;
+
+        // "bind" properties of this to JS global object
+        invocable.invokeMethod(jsObject, "bindProperties", global, this);
+
+        // evaluate the script
+        engine.eval(...);
+    }
+}
+----
+
+Which lets to avoid to reference the _builder_ object so we can write our route as:
+
+[source,js]
+----
+from('timer:js?period=1s')
+    .to('log:js?showAll=false&multiline=false')
+----
+
+=== Groovy
+
+For groovy I decide not to use the ScriptEngine as Groovy as I did not found any easy way to implement a solution similar to the JavaScript one so I decide Groovy's native embedding facility:
+
+[source,groovy]
+----
+new RouteBuilder() {
+    public void configure() throws Exception {
+        CompilerConfiguration cc = new CompilerConfiguration();
+        cc.setScriptBaseClass(DelegatingScript.class.getName());
+
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        GroovyShell sh = new GroovyShell(cl, new Binding(), cc);
+            
+        DelegatingScript script = (DelegatingScript) sh.parse(...)
+        script.setDelegate(this);
+        script.run();
+    }
+}
+----
+
+So we can write routes as:
+
+[source,groovy]
+----
+from('timer:groovy?period=1s')
+    .process { it.in.body = UUID.randomUUID().toString() }
+    .to('log:groovy?showAll=false&multiline=false')
+----
+
+== Conclusion
+
+This is a Sunday project so I'm sure there are quite a lot of small details that need some more attention but if you want to experiment with scripting languages instead of XML to define your routes, you can find a small spring boot auto configurer https://github.com/lburgazzoli/camel-routes-loader[on my GitHub page]. 
+
+To configure the behavior of the auto configurer you can do something like:
+
+[source,yaml]
+----
+camel:
+  springboot:
+    # your camel conf here
+  routes:
+    loader:
+      enabled: true
+      locations:
+        # list of paths and pattern to scan
+        # for routes
+        - classpath:ext/camel/*.js
+        - classpath:ext/camel/*.groovy
+----
+
+=== Updates (2018-07-30)
+
+I've updated the example to include a binding for JavaScript using GraalJS. As there's no equivalent for nashorn's ```bindProperties``` extension, a little hack is required:
+
+[source,java]
+----
+ return new RouteBuilder() {
+    public void configure() throws Exception {
+        try(Context context = Context.create()) {
+
+            // add this builder instance to javascript language
+            // bindings
+            context.getBindings("js").putMember("builder", this);
+
+            // move builder's methods to global scope so builder's
+            // dsl can be invoke directly
+            context.eval(
+                "js",
+                "m = Object.keys(builder)\n" +
+                    "m.forEach((element) => {\n" +
+                    "    global[element] = builder[element]\n" +
+                    "});"
+            );
+
+            // remove bindings
+            context.getBindings("js").removeMember("builder");
+            
+            try (InputStream is = source.getInputStream()) {
+                context.eval(
+                    Source.newBuilder("js", new InputStreamReader(is), "").build()
+                );
+            }
+        }
+    }
+};
+----
+
+[NOTE]
+====
+To user GraalJS it is required to run the project using GraalVM
+====
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+

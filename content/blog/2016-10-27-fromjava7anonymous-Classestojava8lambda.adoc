@@ -1,0 +1,221 @@
+---
+title: 'from("java7:anonymousClasses").to("java8:lambda")'
+date: 2016-10-27
+draft: false
+tags:
+- camel
+- java8
+---
+
+With Camel 2.18 we have introduced a few functional APIs in RouteBuilder so you can leverage lambdas to easily build your routes.
+
+[NOTE]
+====
+this is just the beginning so you should expect more and better functional APIs in the coming versions.
+====
+
+Let's start writing a simple and intentionally verbose Java 7 route that logs if a number is even or odd.
+
+[source,java]
+--
+from("timer:simple?period=503")
+    .setBody(exchangeProperty(Exchange.TIMER_FIRED_TIME))
+    .transform(new ExpressionAdapter() {
+        @Override
+        public Object evaluate(Exchange exchange) {
+            return exchange.getIn().getBody(Date.class).getTime();
+        }
+    })
+    .choice()
+        .when(new Predicate() {
+                @Override
+                public boolean matches(Exchange exchange) {
+                    long number = exchange.getIn().getBody(Long.class);
+                    return (number & 1) == 0;
+                }
+            })
+            .to("Received even number")
+        .when(new Predicate() {
+                @Override
+                public boolean matches(Exchange exchange) {
+                    long number = exchange.getIn().getBody(Long.class);
+                    return (number & 1) != 0;
+                }
+            })
+            .to("Received odd number")
+    .endChoice();
+--
+
+You can now switch to Java 8 and start using new constructs to implement EIP:
+
+* http://camel.apache.org/message-translator.html[Message Translator]
++
+You have a number of options to translate messages and among them you may think to use an http://camel.apache.org/expression.html[Expression] but unfortunately you can't use a lambda to implement such interface as this interface is generic so you may think to use a method reference but that is not really an improvement over using a bean.
++
+Here is where Camel 2.18 can help so you can implement the patter as below:
++
+[source,java]
+--
+    .transform()
+        .body(Date.class, Date::getTime)
+--
+
+* http://camel.apache.org/content-based-router.html[Content Based Router]
++
+A http://camel.apache.org/predicate.html[Predicate] can be easily implemented using lambda, like:
++
+[source,java]
+--
+    .when(exchange -> (exchange.getIn().getBody(Integer.class) & 1) != 0)
+        .to("Received odd number")
+--
++
+However in Camel 2.18 we can make it even easier
++
+[source,java]
+--
+    .when()
+        .body(Long.class, b -> (b & 1) == 0)
+        .to("Received odd number")
+--
+
+We are now ready to apply the new APIs to our route and rewrite it as follow:
+
+[source,java]
+--
+from("timer:simple?period=503")
+    .setBody(exchangeProperty(Exchange.TIMER_FIRED_TIME))
+    .transform()
+        .body(Date.class, Date::getTime)
+    .choice()
+        .when()
+            .body(Long.class, b -> (b & 1) == 0)
+            .log("Received even number ${body}")
+        .when()
+            .body(Long.class, b -> (b & 1) != 0)
+            .log("Received odd number ${body}")
+    .endChoice();
+--
+
+[TIP]
+====
+The new Java 8 APIs introduced in RouteBuilder helps to reduce the amount of code but it also helps to make it clear which is the target of a Predicate/Processor/Expression,  i.e. in the example above you can easily spot that the routing is based on the content of the body.
+====
+
+As Java 8 API refinement is ongoing here an updated list of EIP that have been enanced to be Java 8 friendly:
+
+== From *Camel 2.18.1*
+
+* http://camel.apache.org/aggregator2.html[Aggregator]
++
+you can implement your aggregation policy/aggregation strategy as lambda:
++
+[source,java]
+--
+from("direct:aggregate")
+    .aggregate()
+        .body(Long.class, b -> (b & 1) == 0)
+        .strategy()
+            .body(Long.class, (o, n) -> o != null ? o + n : n)
+        .completion()
+            .body(Long.class, b -> b >= 10)
+    .to("mock:result");
+--
++
+* http://camel.apache.org/content-enricher.html[Content Enricher]
++
+You can enrich content using data from an external service and merge it with a lambda expression:
++
+[source,java]
+--
+fom("direct:start")
+    .enrichWith("direct:resource")
+        .body(String.class, (o, n) -> n + o)
+    .to("mock:enriched");
+--
+
+== From *Camel 2.19*
+
+* http://camel.apache.org/dynamic-router.html[Dynamic Router]
++
+[source,java]
+--
+class MyRouteBuilder extends RouteBuilder {
+    @Override
+    public void configure() throws Exception {
+        from("direct:start-1")
+            .dynamicRouter()
+                .exchange(this::slip);
+    }
+
+    private String slip(Exchange exchange) {
+        String previous = ExchangeHelper.getHeaderOrProperty(
+            exchange,
+            Exchange.SLIP_ENDPOINT,
+            String.class);
+
+        if (previous == null) {
+            return "mock:a,mock:b";
+        } else if ("mock://b".equals(previous)) {
+            return "mock:c";
+        }
+
+        // no more so return null
+        return null;
+    }
+}
+--
++
+* http://camel.apache.org/idempotent-consumer.html[Idempotent Consumer]
++
+[source,java]
+--
+from("direct:start")
+    .idempotentConsumer()
+        .message(m -> m.getHeader("MessageId"))
+        .messageIdRepository(new MemoryIdempotentRepository())
+    .to("mock:result")
+--
++
+* http://camel.apache.org/loop.html[Loop]
++
+You can express the do/while end condition as lamda
++
+[source,java]
+--
+from("direct:start")
+    .loopDoWhile()
+        .body(String.class, b -> b.length() <= 5)
+        .transform()
+            .body(String.class, b -> b += "A")
+        .to("mock:loop")
+    .end()
+    .to("mock:result");
+--
++
+* http://camel.apache.org/multicast.html[Multicast]
++
+You can implement your custom onPrepare function using lambda as well as the aggregation strategy used to assemble the replies from the multicasts.
++
+[source,java]
+--
+from("direct:start")
+    .multicast()
+        .onPrepare()
+            .message(m -> m.setHeader("onPrepare", true))
+        .aggregationStrategy()
+            .body(Integer.class, (o, n) -> o != null ? o + n : n)
+        .to("direct:do-something-1", "direct:do-something-2")
+        .end()
+    .to("mock:result");
+--
++
+* http://camel.apache.org/routing-slip.html[Routing Slip]
++
+[source,java]
+--
+from("direct:start")
+    .routingSlip()
+        .message(m -> m.getHeader("RecipientListHeader", String.class).split(","))
+    .end();
+--

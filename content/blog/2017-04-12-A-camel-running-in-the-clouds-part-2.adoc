@@ -1,0 +1,247 @@
+---
+title: 'A camel running in the clouds (part 2)'
+date: 2017-04-12
+draft: false
+tags:
+- camel
+- microservices
+- cloud
+---
+
+== Meet Camel's ServiceCall EIP
+
+The ServiceCall EIP has been introduced in Camel 2.18.0 to allows calling remote services in a distributed systems looking up informaton about the service to consume from external systems such as Kubernetes, Consul, Etcd or DNS. The ServiceCall EIP has been enhanced in Camel 2.19 to make it more extensible and easier to use.
+
+=== ServiceCall Concepts
+
+The ServiceCall is based on common cloud-concepts:
+
+- *service discovery* to collect services definitions from external systems/registries.
+- *service filter* to filter out services definitions.
+- *service chooser* to choose the most appropriate service to call.
+- *load balancer* glue for above concepts.
+
+==== ServiceCall in Action
+
+The ServiceCall EIP has been implemented to require minimal configuration but let's start with a verbose example:
+
+[source,java]
+----
+public MyRouteBuilder extends RouteBuilder {
+    @Override
+    public void configure() throws Exception {
+        from("timer:service-call?period=1s")
+            .serviceCall()
+                .name("myService") // <1>
+                .staticServiceDiscovery() // <2>
+                    .server("myService@host1.com:443")
+                    .server("myService@host2.com:80")
+                    .server("myService@host3.com:443")
+                    .server("anotherService@host4.com:443")
+                .end()
+                .serviceFilter( // <3>
+                    list -> list.stream().filter(s -> s.getPort() == 443).collect(Collectors.toList())
+                ).serviceChooser( // <4>
+                    list -> list.get(0)
+                )
+            .end();
+    }
+}
+----
+<1> Name the service you want to consume
+<2> The service discovery
+<3> The service filter
+<4> The service chooser
+
+When the timer fires, the load balancer created by the Service Call EIP leverages the provided service discovery implementation to query a thirth party system about the service named ``myService`` then it eventually filter out services not matching a given criteria through the provided service filter (in this case only services listening on port 443 are taken into account), then it chooses the service to use thanks to the given service chooser implementation and finally it invokes the service using the configured component (camel-http4 is the default).
+
+With the example above, the final uri will be:
+[source]
+----
+    http4:host1.com:443
+----
+
+You often need to create a more complex camel uri and the Service Call EIP provides a number of options to achieve such goal:
+
+* The *service name* supports a limited uri like syntax, here some examples
++
+[width="100%",cols="25%a,75%a",options="header"]
+|===
+|Name |Resolution
+
+|myService | http4://host:port
+|myService/path | http4://host:port/path
+|myService/path?foo=bar | http4://host:port/path?foo=bar
+|===
++
+[source,java]
+----
+from("timer:service-call")
+    .serviceCall()
+        .name("myService/hello");
+----
++
+* If you wan to have more control over the uri construction, you can use the *uri* directive:
++
+[width="100%",cols="25%a,40%a,35%a",options="header"]
+|===
+|Name | URI | Resolution
+
+|myService | undertow:http://myService/hellp | undertow:http://host:port/hello
+|myService | undertow:http://myService.host:myService.port/hello | undertow:http://host:port/hello
+|===
++
+[source,java]
+----
+from("timer:service-call")
+    .serviceCall()
+        .name("myService")
+        .uri("undertow:http://myService/hello");
+----
++
+* Advanced users can have full control over the uri construction through expressions:
++
+[source,java]
+----
+from("timer:service-call")
+    .serviceCall()
+        .name("myService")
+        .expression()
+            .simple("undertow:http://${header.CamelServiceCallServiceHost}:${header.CamelServiceCallServicePort}/hello");
+----
+
+=== ServiceCall Configuration
+
+For simple services configuring a service call straight on the route is fine but if you need to leverage the ServiceCall on multiple routes you may want to have shared configurations.
+
+This can be achieved adding one or more ServiceCallConfigurationDefinition to the camel context or registry:
+
+
+[source,java]
+.Example
+----
+StaticServiceDiscovery discovery = new StaticServiceDiscovery();
+discovery.addServer("myService@host1.com:443");
+discovery.addServer("myService@host2.com:80");
+discovery.addServer("myService@host3.com:443");
+discovery.addServer("anotherService@host4.com:443");
+discovery.addServer("anotherService@host5.com:8443");
+
+ServiceCallConfigurationDefinition globalConf = new ServiceCallConfigurationDefinition();
+globalConf.setServiceDiscovery(discovery);
+globalConf.setServiceChooser(list -> list.get(ThreadLocalRandom.current().nextInt(list.size())));
+
+ServiceCallConfigurationDefinition httpsConf = new ServiceCallConfigurationDefinition();
+httpsConf.setServiceFilter(list -> list.stream().filter(s -> s.getPort() == 443).collect(toList()))
+
+getContext().setServiceCallConfiguration(globalConf); // <1>
+getContext().addServiceCallConfiguration("https", httpsConf); // <2>
+----
+<1> Set the default ServiceCall configuration
+<2> Add a specific configuration named "https"
+
+From now on, the globla configuration is used to provide the defaults for all the service call definitions and additional named configuration, let's see how this impacts our routes definition:
+
+[source,java]
+----
+from("timer:service-call-1")
+    .serviceCall()
+        .name("myService")
+        .serviceCallConfiguration("https") // <1>
+        .serviceChooser(list -> list.get(0)); // <2>
+
+from("timer:service-call-2")
+    .serviceCall()
+        .name("anotherService");
+----
+<1> Set the service call configuration used as template
+<2> Override the service chooser provided by the template
+
+What's happen unde the hoods is:
+
+* Both the service call have access to the same service list thanks to the globa configuration
+* The first service call will be able to consume only services on port 443 as it hinerits from the configuration named ``https``
+* The first service call will always use the first server retrieved by the service discovery (yes, in this dummy example it will always be the same)
+* The second service call inherits its whole configuration from the default one
+
+=== Spring Boot support
+
+The Service Call EIP plays very well with Spring Boot and you can configure most of the options from the ``application.properties`` so let's write an example of a micro service that should get the list of available services from a ``consul`` registry and using a ``ribbon`` load balancer:
+
+* *Dependencies:*
+** camel-spring-boot-starter
+** camel-consul-starter
+** camel-ribbon-starter
+
+* *Application configuration:*
++
+[source,properties]
+.application.properties
+----
+# this can be configured stright tot he route and it has been included to show
+# property placeholders support
+service.name = myService
+
+# this property is not mandatory and it has been included to show how to configure
+# the service discovery implementation provided by camel-consul
+camel.cloud.consul.service-discovery.url = http://localhost:8500
+----
+
+* *Routes:*
++
+[source,java]
+----
+@Component
+public class MyRouteBuilder implements RouteBuilder {
+    @Override
+    public void configure() throws Exception {
+        from("direct:service-call")
+            .serviceCall("{{service.name}}");
+    }
+}
+----
+
+That's all!
+
+Under the hood the camel starter perform auto configuration of the underlying services such as:
+
+* A LoadBalancer based on NetflixOSS Ribbon
+* A ServiceDiscovery based on HashiCorp Consul
+* A ServiceFilter based on Consul's service health
+
+If needed you can add additional Service Discovery to the mix and under the hood camel will bridge them i.e. you can add a static list of services to the mix with a simple configuration like:
+
+[source,properties]
+.application.properties
+----
+camel.cloud.service-discovery.services[myService] = host1:8080,host2:8080,host3:8080
+----
+
+TIP: You can use Spring Cloud and Spring Cloud Netflix instead of Camel's own consul/ribbon implementation by using camel-spring-cloud-starter and camel-spring-cloud-netflix-starter.
+
+=== Ready to use Implementations
+
+Camel provides some implementations of the conceept we have introduced sat the biginning of the post out of the box:
+
+[width="100%",cols="30%a,50%a,20%a",options="header"]
+|===
+| Type | Name | Artifact
+1.6+<.^|*Service Discovery*
+| Static service discovery | camel-core
+| Chained service discovery | camel-core
+| Consul based service discovery | camel-consul
+| DNS SRV based service discovery | camel-dns
+| Etcd based service discovery | camel-etcd
+| Kubernetes based service discovery | camel-kubernetes
+1.4+<.^|*Service Filter*
+| Healty filter | camel-core
+| Pass through filter | camel-root
+| Blacklist service filter | camel-core
+| Chained service filter | camel-core
+1.2+<.^|*Service Chooser*
+| Round robin chooser | camel-core
+| Random chooser | camel-core
+1.2+<.^|*Load Balancer*
+| Default load balancer | camel-core
+| SpringCloud load-balancer | camel-spring-cloud
+|===

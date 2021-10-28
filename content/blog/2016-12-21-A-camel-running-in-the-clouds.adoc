@@ -1,0 +1,172 @@
+---
+title: 'A camel running in the clouds'
+date: 2016-12-21
+draft: false
+tags:
+- camel
+- spring-boot
+- spring-cloud
+- microservices
+- cloud
+---
+
+== Camel and Spring Boot
+
+Camel supports Spring Boot since Camel 2.15 but in the latest release we have improved Camel to make it a first class citizen of Spring Boot, some notables improvements available as of Camel 2.18 are:
+
+- spring boot starters
+- spring boot auto configuration
+- spring boot healt check
+
+In Camel 2.19 we'll furter improve the integration between Camel and Spring Boot and it will include support for Spring Cloud.
+
+
+=== Meet Camel Spring Cloud
+
+Spring Cloud footnote:[http://projects.spring.io/spring-cloud/] provides an implementation of some common pattern in distributed system like:
+
+- configuration management
+- service discovery
+- load balancing
+
+The initial support for Spring Cloud in Camel leverages service discovery and load balancing to provide an implementation of the ServiceCall EIP footnote:[http://camel.apache.org/servicecall-eip.html] so that you can easilly call remote services with minimal efforts.
+
+
+Let's build a simple load balanced ServiceCall in OpenShift
+
+[NOTE]
+====
+I'll show the relevant parts here, full code is available on https://github.com/lburgazzoli/camel-cloud[github]
+====
+
+==== Bill of materials
+
+- Minishift footnote:[https://github.com/minishift/minishift]
+- Apache Maven
+- Fabri8 Maven Plugin footnote:[https://maven.fabric8.io/]
+- Spring Boot
+- Spring Cloud Commons
+- Spring Cloud Netflix
+- Spring Cloud Kubernetes
+- Apache Camel 2.19.0-SNAPSHOT
+
+
+[IMPORTANT]
+====
+Spring Cloud Kubernetes is now part of Spring Cloud Incubator footnote:[https://github.com/spring-cloud-incubator/spring-cloud-kubernetes] but we are still using the version from fabric8io footnote:[https://github.com/fabric8io/spring-cloud-kubernetes/] to let the migration process to complete
+====
+
+==== Set up a simple REST Web Service
+
+Thanks to Spring Boot, writing a simple REST Web Service is really trivial:
+
+[source,java]
+----
+@RestController
+public class ServiceController {
+    @RequestMapping("/hello")
+    public String hello() {
+        return "Hello from " + System.getenv("POD_NAME");
+    }
+}
+----
+
+Now, let's write a OpenShift descriptor to start two replicas of the Web Service we have created:
+
+[source,yaml]
+----
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        -
+          env:
+          - name: SPRING_APPLICATION_NAME
+            value: camel-cloud-svc
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+----
+
+Thanks to the Fabric8 Maven Plugin, deploying our Web Service is a matter of a single command:
+
+[source]
+----
+$ mvn fabric8:deploy
+
+...
+
+$ oc get pods
+NAME                          READY     STATUS      RESTARTS   AGE
+camel-cloud-svc-1-deploy      1/1       Running     0          27s
+camel-cloud-svc-1-ojyy6       0/1       Running     0          24s
+camel-cloud-svc-1-sbkbi       0/1       Running     0          24s
+camel-cloud-svc-s2i-2-build   0/1       Completed   0          55s
+----
+
+If you looks at the endpoints you'll see the internal addresses our Web Service is listening to and its name:
+
+[source]
+----
+$ oc get endpoints
+NAME              ENDPOINTS                         AGE
+camel-cloud-svc   172.17.0.3:8080,172.17.0.5:8080   2m
+----
+
+==== Set up a simple Camel Route
+
+Thanks to Spring Boot, Spring Cloud and Camel Spring Cloud writing a simple route that invokes the Web Services we have deployed above is really easy:
+
+[source,java]
+----
+@Configuration
+public class ConsumerConfiguration {
+    @Bean
+    public RouteBuilder routeBuilder() {
+        return new RouteBuilder() {
+            @Override
+            public void configure() throws Exception {
+                from("timer:service-call?period=1s")
+                    .serviceCall("camel-cloud-svc/hello") <!--1-->
+                    .convertBodyTo(String.class)
+                        .to("log:service.consumer?level=INFO&showAll=tru&multiline=true");
+            }
+        };
+    }
+}
+----
+<1> The only thing you need to configure the Service Call EIP: the name of the service and its context path
+
+Thanks to the Fabric8 Maven Plugin, running our Web Service Consumer is a matter of a single command:
+
+[source]
+----
+$ mvn fabric8:run
+
+...
+
+[INFO] F8: 2016-12-21 17:35:25.473  INFO 1 --- [://service-call] service.consumer : Exchange[
+[INFO] F8: , ExchangePattern: InOnly
+[INFO] F8: , BodyType: String
+[INFO] F8: , Body: Hello from camel-cloud-svc-1-sbkbi <!--1-->
+[INFO] F8: ]
+[INFO] F8: 2016-12-21 17:35:25.563  INFO 1 --- [://service-call] service.consumer : Exchange[
+[INFO] F8: , ExchangePattern: InOnly
+[INFO] F8: , BodyType: String
+[INFO] F8: , Body: Hello from camel-cloud-svc-1-ojyy6 <!--2-->
+[INFO] F8: ]
+----
+<1> Web Service invoked on POD camel-cloud-svc-1-sbkbi
+<2> Web Service invoked on POD camel-cloud-svc-1-ojyy6
+
+==== Wrap up
+
+What's happen under the hood ?
+
+1. Spring Cloud Kubernetes automatically creates a DiscoveryClient which is used to lookup services by name
+2. Spring Cloud Commons/Netflix automatically creates a LoadBalancerClient which leverages Netflix's Ribbon for load balancing
+3. Camel Spring Cloud automatically configure the SerivceCall EIP to use the LoadBalancerClient created by Spring Cloud
+
+WARNING: This is a work in progress so things may change in the next future.
