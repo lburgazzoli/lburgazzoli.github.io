@@ -1,53 +1,76 @@
+
 baseURL = "https://lburgazzoli.github.io"
 languageCode = "en-us"
-title = ".: LB :."
-theme =[ "minimal" ]
-disqusShortname = "lburgazzoli-github-io"
+defaultContentLanguage = "en-us"
+title = "Luca Burgazzoli"
+theme =[ "hugo-blog-awesome" ]
+
+
+[menu]
+  [[menu.main]]
+    pageRef="/"
+    name = 'Home'
+    url = '/'
+    weight = 10
+  [[menu.main]]
+    pageRef="posts"
+    name = 'Posts'
+    url = '/posts/'
+    weight = 20
+  [[menu.main]]
+    pageRef="about"
+    name = 'About'
+    url = '/about/'
+    weight = 30
 
 [params]
-    author = "Luca Burgazzoli"
-    description = '''
+  sitename = ".: LB :."
+  defaultColor = "dark"  
+  description = '''
         Yet another software developer.
         Ideas are my own.
         '''
-    githubUsername = "lburgazzoli"
-    accent = "black"
-    showBorder = true
-    backgroundColor = "lightgray"
-    font = "Raleway" # should match the name on Google Fonts!
-    highlight = true
-    highlightStyle = "monokai"
-    highlightLanguages = ["go", "java", "rust", "python", "groovy", "yaml", "ini"]
+  mainSections = ['posts']
+  #toc = true
+  goToTop = true # set to false to disable 'go to top' button
 
+[params.author]
+  avatar = "avatar.jpg" 
+  intro = ".: LB :."
+  name = ".: LB :."
+  description = '''
+        Yet another software developer.
+        Ideas are my own.
+        '''
 
+[[params.socialIcons]]
+name = "github"
+url = "https://github.com/lburgazzoli"
 
-[[menu.main]]
-    url = "/"
-    name = "Home"
-    weight = 1
+[[params.socialIcons]]
+name = "twitter"
+url = "https://twitter.com/lburgazzoli"
 
-[[menu.main]]
-    url = "/about/"
-    name = "About"
-    weight = 2
+[[params.socialIcons]]
+name = "linkedin"
+url = "https://www.linkedin.com/in/lucaburgazzoli"
 
-[[menu.main]]
-    url = "/blog/"
-    name = "Blog"
-    weight = 3
+[[params.socialIcons]]
+name = "RSS"
+url = "index.xml"
 
-[[menu.icon]]
-    url = "https://github.com/lburgazzoli/"
-    name = "fab fa-github"
-    weight = 1
+[security]
+  enableInlineShortcodes = false
 
-[[menu.icon]]
-    url = "https://twitter.com/lburgazzoli/"
-    name = "fab fa-twitter"
-    weight = 2
+  [security.exec]
+    allow = ['^dart-sass-embedded$', '^go$', '^npx$', '^postcss$', '^asciidoctor$']
+    osEnv = ['(?i)^((HTTPS?|NO)_PROXY|PATH(EXT)?|APPDATA|TE?MP|TERM|GO\w+)$']
 
-[[menu.icon]]
-    url = "https://www.linkedin.com/in/lucaburgazzoli"
-    name = "fab fa-linkedin"
-    weight = 3
+  [security.funcs]
+    getenv = ['^HUGO_', '^CI$']
+
+  [security.http]
+    methods = ['(?i)GET|POST']
+    urls = ['.*']
+
 
