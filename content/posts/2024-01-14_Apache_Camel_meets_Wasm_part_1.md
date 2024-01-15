@@ -92,7 +92,7 @@ As usual the devil is in the detail.
 
 ## Memory Management and Data Exchange
 
-In _Wasm_, sharing objects between the host, in this case the _JVM_, and the _Wasm_ module is deliberately restricted and as fo today, it requires a number of steps:
+In _Wasm_, sharing objects between the host, in this case the _JVM_, and the _Wasm_ module is deliberately restricted and as of today, it requires a number of steps:
 
 1. From the _host_, call a function inside the webassembly module that allocates a block of memory and returns its address, then save it
 2. From the _host_, write the data that should be exchanged with the _Wasm_ module to the saved address
