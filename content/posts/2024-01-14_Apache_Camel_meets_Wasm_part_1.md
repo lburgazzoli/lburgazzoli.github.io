@@ -92,9 +92,19 @@ As usual the devil is in the detail.
 
 ## Memory Management and Data Exchange
 
-In _Wasm_, sharing objects between the host, in this case the _JVM_, and the _Wasm_ module is deliberately restricted, so the parties must agree on a number of things, among which:
-1. the schema of the data exchnaged
-2. the memory management, so how data must be allocated and when/how/who it should be de-allocate 
+In _Wasm_, sharing objects between the host, in this case the _JVM_, and the _Wasm_ module is deliberately restricted and as fo today, it requires a number of steps:
+
+1. From the _host_, call a function inside the webassembly module that allocates a block of memory and returns its address, then save it
+2. From the _host_, write the data that should be exchanged with the _Wasm_ module to the saved address
+3. From the _host_, invoke the required function passing both the address where the data is written and its size
+4. From the _Wasm_ module, read the data and process it
+5. From the _host_, release the memory when done
+
+![camel-component](/images/wasm-data-sharing.png)
+
+So the parties must agree on a number of things, among which:
+- the schema of the data exchnaged, aka the protocol
+- the memory management, so how data must be allocated and when/how/who it should be de-allocated 
 
 The data structure chosen for this POC is a subset of an Apache Camel Exchange, containing headers and a body encoded as a base64 string.
 
@@ -110,7 +120,11 @@ public static class Wrapper {
 
 To be sure the data is valid for the entire execution of the Apache Camel's processor, the host is the one responsible to de-allocate memory and this has an impact on how the guest function is implemented. 
 
-For this POC, I decided to use [Rust](https://www.rust-lang.org/) to write the _Wasm_ function and below you can find exemplare allocation and deallocation functions:
+For this POC I decided to use [Rust](https://www.rust-lang.org/) to write webassembly modules, so the examples will be done using that.
+
+### Memory Allocation
+
+Below you can find examples for an allocation and deallocation functions:
 
 ```rust
 pub extern "C" fn alloc(size: u32) -> *mut u8 {
@@ -129,7 +143,9 @@ pub unsafe extern "C" fn dealloc(ptr: &mut u8, len: i32) {
 }
 ```
 
-Now we can implement the real function which ins this case does nothing more that take the input body and make it upper case:
+### Data processing
+
+Now we can implement the data processing function which ins this case does nothing more that take the input body and make it upper case:
 
 ```rust
 #[derive(Serialize, Deserialize)]
