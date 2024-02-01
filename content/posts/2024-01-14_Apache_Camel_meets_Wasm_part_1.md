@@ -1,5 +1,5 @@
 ---
-title: 'Apache Camel meets WASM - Part 1'
+title: 'Apache Camel meets Wasm - Part 1'
 date: 2024-01-14
 draft: false
 tags:
