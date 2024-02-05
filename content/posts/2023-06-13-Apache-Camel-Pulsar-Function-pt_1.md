@@ -9,7 +9,7 @@ tags:
 - functions
 ---
 
-I recently came across an interesting [article from DataStax](https://thenewstack.io/simplified-data-pipelines-with-pulsar-transformation-functions) about simplified, low-code friendly data piepelines with [Pulsar Function](https://pulsar.apache.org/docs/functions-overview) and since I always wanted to learn a little bit more about [Apache Pulsar](https://pulsar.apache.org) and I've been working on something similar, I've [started exploring](https://github.com/lburgazzoli/camel-pulsar-function) how a Pulsar Function based on [Apache Camel](https://camel.apache.org) would look like.
+I recently came across an interesting [article from DataStax](https://thenewstack.io/simplified-data-pipelines-with-pulsar-transformation-functions) about simplified, low-code friendly data piepelines with [Pulsar Function](https://pulsar.apache.org/docs/functions-overview) and since I always wanted to learn a little bit more about [Apache Pulsar](https://pulsar.apache.org) and I've been working on something similar, I've [started exploring](https://github.com/lburgazzoli/pulsar-function-camel) how a Pulsar Function based on [Apache Camel](https://camel.apache.org) would look like.
 
 # Background
 
@@ -35,7 +35,7 @@ In addition to the standard Java SDK, there is also an [Extended SDK for Java](h
 
 In order to embed the Apache Camel in the function runtime, an instance of a [CamelContext](https://camel.apache.org/manual/camelcontext.html), must be created and since it is an heavyweight object, we can tie its lifecycle to the `initialize` and `close` so a CamelContext is created and started only once when the function instance starts and then it last for the entire lifecycle of the function.
 
-At an high level, the [implementation](https://github.com/lburgazzoli/camel-pulsar-function) does the following tasks:
+At an high level, the [implementation](https://github.com/lburgazzoli/pulsar-function-camel) does the following tasks:
 1. Initialize and start a long running CamelContext instance when the function instance starts;
 2. Load the user defined processing steps defined using the [Apache Camel YAML DSL](https://camel.apache.org/components/3.20.x/others/yaml-dsl.html);
 3. Wire the function input to the Camel's Route and publish back the result to Pulsar depending on the configuration and routing decision;
@@ -53,8 +53,8 @@ name: "content-based-routing"
 inputs:
   - "persistent://public/default/input-1"
 output: "persistent://public/default/output-1"
-jar: "build/libs/camel-pulsar-function-${version}-all.jar"
-className: "com.github.lburgazzoli.camel.pulsar.CamelFunction"
+jar: "build/libs/pulsar-function-camel-${version}-all.jar"
+className: "com.github.lburgazzoli.pulsar.function.camel.CamelFunction"
 logTopic: "persistent://public/default/logging-function-logs"
 userConfig:
   steps: |
@@ -110,16 +110,16 @@ By default, the result of the processing pipeline is sent to the output topic de
 
 # Building and Deploying the Pulsar Function
 
-1. Clone the repository https://github.com/lburgazzoli/camel-pulsar-function
+1. Clone the repository https://github.com/lburgazzoli/pulsar-function-camel
 2. Build the project by executing  `./gradlew clean shadowJar`
-3. Deploy the generated function artifact (`build/libs/camel-pulsar-function-0.1.0-SNAPSHOT-all.jar`) by following the [tutorial](https://pulsar.apache.org/docs/3.0.x/functions-deploy/)
+3. Deploy the generated function artifact (`build/libs/pulsar-function-camel-0.1.0-SNAPSHOT-all.jar`) by following the [tutorial](https://pulsar.apache.org/docs/3.0.x/functions-deploy/)
 
 # Conclusion
 
 Event this is nothing more than a POC which requires more work to be production ready, I think that by combining Pulsar Function and Apache Camel's integration capabilities, developers can build robust and efficient data pipelines with ease. 
 The seamless integration, versatile transformation capabilities, flexible routing, and extensibility offered by this implementation make it an excellent choice for simplifying data pipelines within the Pulsar ecosystem.
 
-To learn more about this implementation and explore its code, visit the [GitHub repository](https://github.com/lburgazzoli/camel-pulsar-function)
+To learn more about this implementation and explore its code, visit the [GitHub repository](https://github.com/lburgazzoli/pulsar-function-camel)
 
 # TODO
 
