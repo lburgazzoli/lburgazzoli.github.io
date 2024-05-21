@@ -325,4 +325,5 @@ At this point the Camel Go’s _wasm_ language inspects the configured container
 
 # Conclusion
 
-In this first part, I went into some of the details about the implementation of an Apache Camel-like routing engine written in GoLang. that leverages Wasm for extensibility. In the second part, I’m going through some more detail about deployment options.    
+In this first part, I went into some of the details about the implementation of an Apache Camel alike routing engine written in GoLang that leverages Wasm for extensibility. 
+In the next posts, I'll provide some more implementation details and deployment options.    
