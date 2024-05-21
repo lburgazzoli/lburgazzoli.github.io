@@ -12,7 +12,6 @@ I recently had some time to continue exploring how to combine some of the techno
 
 What we will go through in this post is:
 - Apache Camel alike routing engine written in GoLang
-- Apache Camel K alike controller
 - Embedded WebAssembly engine for extensible and safe message routing and transformation
 - Actors Model
 - OCI Artifacts
