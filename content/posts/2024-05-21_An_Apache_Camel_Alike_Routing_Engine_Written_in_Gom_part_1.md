@@ -1,5 +1,5 @@
 ---
-title: Apache Camel alike routing engine written in GoLang pt. 1'
+title: Apache Camel alike routing engine written in GoLang pt. 1
 date: 2024-05-21
 draft: false
 tags:
