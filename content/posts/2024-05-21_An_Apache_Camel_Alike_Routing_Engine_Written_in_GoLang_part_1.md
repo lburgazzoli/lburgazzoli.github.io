@@ -41,7 +41,7 @@ Let’s also define what acronyms stands for:
 
 Provide a lightweight and safe cloud native routing and mediation engine built with modern technologies.
 
-# An Apache Camel alike routing engine written in Go Lang
+# An Apache Camel alike routing engine written in GoLang
 
 _Note: I assume that the reader has a minimal knowledge of the Apache Camel architecture, if not some info can be found_ [_here_](https://camel.apache.org/manual/architecture.html) _so, for the rest of the post, I’ll focus on the parts that are more relevant for my POC._
 
