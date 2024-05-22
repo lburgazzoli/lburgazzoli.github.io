@@ -8,7 +8,7 @@ tags:
 - integration
 ---
 
-I recently had some time to continue exploring how to combine some of the technologies I had on my radar for quite a while and I finally got something that - even if it is just a proof of concept / experiment - can finally be shown.
+I recently had some time to continue exploring how to combine some of the technologies I had on my radar for quite a while and I finally got something that - although it is just a proof of concept / experiment - can be shown.
 
 What we will go through in this post is:
 - Apache Camel alike routing engine written in GoLang
@@ -17,7 +17,7 @@ What we will go through in this post is:
 - OCI Artifacts
 
 **_Notes:_** 
-- **_the result of this work is by no mean expected to land in the official Apache Camel project or in any Red Hat Integration product_** 
+- **_the result of this work is by no means expected to land in the official Apache Camel project or in any Red Hat Integration product_** 
 
 # Background
 
@@ -43,11 +43,11 @@ Provide a lightweight and safe cloud native routing and mediation engine built w
 
 # An Apache Camel alike routing engine written in GoLang
 
-_Note: I assume that the reader has a minimal knowledge of the Apache Camel architecture, if not some info can be found_ [_here_](https://camel.apache.org/manual/architecture.html) _so, for the rest of the post, I’ll focus on the parts that are more relevant for my POC._
+_Note: I assume that the reader has a minimal knowledge of the Apache Camel architecture, if not some info can be found_ [_here_](https://camel.apache.org/manual/architecture.html) _so, for the rest of the post, I will focus on the parts that are more relevant for my POC._
 
-It is not the first time that a port of Apache Camel to Go lang is being discussed, for example some friend of mine started [Gamel](https://github.com/ugol/gamel) (note, I like the name a lot so if the original author agrees, I may use it at some point), however the project did not progress much. 
+It is not the first time that a port of Apache Camel to Go lang is being discussed. For example, a friend of mine started [Gamel](https://github.com/ugol/gamel) (note, I like the name a lot so if the original author agrees, I might use it at some point), however the project did not progress much. 
 
-I also created my own experimental project [camel-go v1 ](https://github.com/lburgazzoli/camel-go/tree/v1)but I had not much time to move it forward till some months ago when I started working on it again but looking at the goal from a different perspective and I rewrote it by using Apache Camel as an inspiration more than something to merely port to another language. 
+I also created my own experimental project [camel-go v1 ](https://github.com/lburgazzoli/camel-go/tree/v1) but I had not much time to move it forward till some months ago when I started working on it again but looking at the goal from a different perspective and I rewrote it by using Apache Camel as an inspiration more than something to merely port to another language. 
 
 When talking about Apache Camel, people often mention the large set of connectivity options the project provides, however the key feature of Apache Camel is the implementation of [EIP](https://camel.apache.org/components/4.0.x/eips/enterprise-integration-patterns.html) and the [DSL](https://camel.apache.org/manual/dsl.html) it offers for defining integration routes and processing logic in a human-readable and expressive manner, abstracting away much of the boilerplate code required for integration tasks. 
 
@@ -89,7 +89,7 @@ Why actors ? 
 
 Because actors have some characteristics that make them very suitable and interesting in our use case, to mention some:
 
-- **State**: represents the internal state of the actor and depends on the specific actor, some actor are stateless but some may requires to store some state (i.e. throttling messages)
+- **State**: represents the internal state of the actor and depends on the specific actor; some actor are stateless, but some may requires to store some state (i.e. throttling messages)
 - **Behavior**: the actions to be taken in reaction to the message at that point in time.
 - **Mailbox**: it connects sender and receiver; each actor has exactly one mailbox to which all senders enqueue their messages
 - **Children:** an actor can create children for delegating sub-tasks, in such cases the actor will automatically supervise them.
@@ -104,7 +104,7 @@ That said, the route introduced in the previous section can be described by a ne
 
 ![actor-engine](/images/actor-engine.svg)
 
-When a route is loaded in the Camel Go runtime, then the runtime creates a root actor which is often described by a _from_ definition, which then spawns all its child actors which themself can spawn other children. 
+When a route is loaded in the Camel Go runtime, then the runtime creates a root actor which is often described by a _from_ definition, which then spawns all its child actors which themselfes can spawn other children. 
 
 This tree of actors is called an _actor system._
 
@@ -115,7 +115,7 @@ One important characteristic of an actor system is that because actors can only 
 
 # Wasm for extensibility
 
-I’ve been working for some time toward providing a managed connectivity service for Apache Kafka and one of the most critical yet difficult parts is how to allow running non-trivial processing logic in a simpler and safer way. Over time we experimented with a number of options such as functions, scripting languages, custom images, etc however none was really satisfying, i.e. 
+I’ve been working for some time toward providing a managed connectivity service for Apache Kafka and one of the most critical yet difficult parts is how to allow running non-trivial processing logic in a simpler and safer way. Over time we experimented with a number of options such as functions, scripting languages, custom images, etc however, none were really satisfying, i.e. 
 
 - scripting languages:
   - Require the users to eventually learn a new language
@@ -128,7 +128,7 @@ I’ve been working for some time toward providing a managed connectivity servic
 So I decided to give Wasm a try as Wasm is meant to be:
 - **Polyglot**: A number of languages support Wasm as a compilation target which makes it possible to attract a larger number of developers that may not be familiar with the language the runtime is written with.
 - **Secure**: one of WebAssembly's main goals is to execute untrusted code in a safe manner inside of a sandbox where only the host can configure what the code running in the sandbox has access to, making it a perfect fit for plugins/extensions. 
-- **Embeddable:** a Wasm runtime can be embedded in the host application, allowing the application to be securely extended with any language that can be compiled to Wasm without requiring any additional infrastructure and without having the data leaving the application.
+- **Embeddable:** a Wasm runtime can be embedded in the host application, allowing it to be securely extended with any language that can be compiled to Wasm without requiring additional infrastructure or data leaving the application.
 
 There are a number of Wasm runtimes out there but since Go is the language of choice for this POC, I leveraged [Wazero](https://wazero.io) as it is the only zero dependency WebAssembly runtime (i.e. it does not require any native library binding). 
 
@@ -143,7 +143,7 @@ Albeit being a very simple function, invoking it from the host program is not tr
 1. By manually dealing with memory allocation and deallocation within WASM linear memory
 2. By using STDIN/OUT as a way to exchange data (CGI anyone)
 
-My first attempt was to use option **A** which led me to do a very long research to understand how to safely manage memory between host and guest in particular in relation to languages such as Go that have a garbage collector. Some results can be seens by looking at the [allocation examples](https://github.com/tetratelabs/wazero/tree/main/examples/allocation) on the wazero repo (thx to Adrian Cole and Edoardo Vacchi for the patience and guidance) but for the sake of simplicity (remember, this is just a POC) and portability I then decided to move toward options **B** which in the host side ended up being similar to the example here:
+My first attempt was to use option **A** which led me to do a very long research to understand how to safely manage memory between host and guest in particular in relation to languages such as Go that have a garbage collector. Some results can be seens by looking at the [allocation examples](https://github.com/tetratelabs/wazero/tree/main/examples/allocation) on the wazero repo (thx to Adrian Cole and Edoardo Vacchi for the patience and guidance) but for the sake of simplicity (remember, this is just a POC) and portability I then decided to move toward options **B** which on the host side ended up being similar to the example here:
 
 ```go
 func (p *Plugin) invoke(in any, out any) error {
@@ -265,7 +265,8 @@ func Process(_ context.Context, r *Message) (*Message, error) {
 }
 ```
 
-To use a Wasm function in the routing engine, then we can leverage the _wasm language,_ as an example
+To use a Wasm function in the routing engine, then we can leverage the _wasm language,_. 
+For example:
 
 ```yaml
 - route:
