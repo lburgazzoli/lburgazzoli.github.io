@@ -1,5 +1,5 @@
 ---
-title: Apache Camel alike routing engine written in GoLang pt. 1
+title: Apache Camel alike routing engine written in GoLang - Part 1
 date: 2024-05-21
 draft: false
 tags:
@@ -141,7 +141,6 @@ func (inOut Message) error
 Albeit being a very simple function, invoking it from the host program is not trivial as you need to cross the host/guest memory boundaries which can be done in a number of ways among which:
 
 1. By manually dealing with memory allocation and deallocation within WASM linear memory
-
 2. By using STDIN/OUT as a way to exchange data (CGI anyone)
 
 My first attempt was to use option **A** which led me to do a very long research to understand how to safely manage memory between host and guest in particular in relation to languages such as Go that have a garbage collector. Some results can be seens by looking at the [allocation examples](https://github.com/tetratelabs/wazero/tree/main/examples/allocation) on the wazero repo (thx to Adrian Cole and Edoardo Vacchi for the patience and guidance) but for the sake of simplicity (remember, this is just a POC) and portability I then decided to move toward options **B** which in the host side ended up being similar to the example here:
@@ -278,6 +277,11 @@ To use a Wasm function in the routing engine, then we can leverage the _wasm lan
        - to:
            uri: "log:info"
 ```
+
+
+**_Notes:_** 
+- This post and POC has started way before I had the opportunity to digg a little bit more about bringing Wasm to [Apache Camel](https://lburgazzoli.github.io/posts/2024-01-14_apache_camel_meets_wasm_part_1/) and [Apache Kafka Connect](https://lburgazzoli.github.io/posts/2024-02-01_apache_kafka_connect_meets_wasm_part_1), hence the tecnique illustrated above is likely gogin to change according to the learning coming from the two mentioned POC.
+
 
 # OCI Artifacts for Wasm distribution
 
