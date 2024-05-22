@@ -282,6 +282,7 @@ For example:
 
 **_Notes:_** 
 - This post and POC has started way before I had the opportunity to digg a little bit more about bringing Wasm to [Apache Camel](https://lburgazzoli.github.io/posts/2024-01-14_apache_camel_meets_wasm_part_1/) and [Apache Kafka Connect](https://lburgazzoli.github.io/posts/2024-02-01_apache_kafka_connect_meets_wasm_part_1), hence the tecnique illustrated above is likely gogin to change according to the learning coming from the two mentioned POC.
+- At this stage, Wasm is supported only for data manipulation but, once the Wasm ecosystem will be mature enough to support more system features such as I/O, multi-threading, etc. then Wasm would be also useful to provide component to integrate with 3rd party systems, which would make the engine completely extensible.
 
 
 # OCI Artifacts for Wasm distribution
