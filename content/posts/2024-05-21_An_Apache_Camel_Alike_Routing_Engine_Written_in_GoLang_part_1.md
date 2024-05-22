@@ -39,7 +39,7 @@ Let’s also define what acronyms stands for:
 
 # Goal
 
-Provide a lightweight and safe cloud native routing and mediation engine built with modern technologies.
+Provide a lightweight and safe cloud-native routing and mediation engine built with modern technologies.
 
 # An Apache Camel alike routing engine written in GoLang
 
@@ -125,9 +125,9 @@ I’ve been working for some time toward providing a managed connectivity servic
   - Costs is often higher as data must be transferred between the main application and the functions which leads to I/O and often escapes data locality  
   - Failure handling become more complicated 
 
-So I decided to give Wasm a try as Wasm is meant to be:
-- **Polyglot**: A number of languages support Wasm as a compilation target which makes it possible to attract a larger number of developers that may not be familiar with the language the runtime is written with.
-- **Secure**: one of WebAssembly's main goals is to execute untrusted code in a safe manner inside of a sandbox where only the host can configure what the code running in the sandbox has access to, making it a perfect fit for plugins/extensions. 
+So, I decided to give Wasm a try as Wasm is meant to be:
+- **Polyglot**: many languages support Wasm as a compilation target, which attracts more developers who may not be familiar with the runtime language.
+- **Secure**: one of WebAssembly's main goals is to execute untrusted codesafely inside a sandbox where only the host can configure what the code running in the sandbox can access, making it a perfect fit for plugins/extensions. 
 - **Embeddable:** a Wasm runtime can be embedded in the host application, allowing it to be securely extended with any language that can be compiled to Wasm without requiring additional infrastructure or data leaving the application.
 
 There are a number of Wasm runtimes out there but since Go is the language of choice for this POC, I leveraged [Wazero](https://wazero.io) as it is the only zero dependency WebAssembly runtime (i.e. it does not require any native library binding). 
@@ -288,7 +288,7 @@ For example:
 
 Now that we have a somehow working Routing Engine (**NOTE:** **only few EIP are supported at this stage**) which supports Wasm as a way to implement transformation logic, we must define how to make it easy for users to ship and consume Wasm artifacts.
 
-There are of course many way of doing it like building custom container images with the compiled Wasm models includes or make the Wasm modules available on a filesystem that the engine can read from however, since pretty much every cloud-native systems has to deal with Container Image registries, we could leverage OCI Registries and OCI Artifacts. 
+There are of course many way to do this, such as building custom container images with the compiled Wasm models includes or make the Wasm modules available on a filesystem that the engine can read from however, since almost every cloud-native systems has to deal with Container Image registries, we could leverage OCI Registries and OCI Artifacts. 
 
 So, what is an OCI Artifact ?
 
