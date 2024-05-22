@@ -265,7 +265,7 @@ func Process(_ context.Context, r *Message) (*Message, error) {
 }
 ```
 
-To use a Wasm function in the routing engine, then we can leverage the _wasm language,_. 
+To use a Wasm function in the routing engine, then we can leverage the _wasm language_. 
 For example:
 
 ```yaml
